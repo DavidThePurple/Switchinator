@@ -19,6 +19,7 @@ KWin.SceneEffect {
     property real returnProgress: 0
     property rect returnSource: Qt.rect(0,0,0,0)
     property rect returnDestination: Qt.rect(0,0,0,0)
+    property var pendingActivation: null
     property var returnWindow: null
     property string returnKey: ""
     signal captureRequested(var client)
@@ -57,7 +58,17 @@ KWin.SceneEffect {
         if (!autoRotateEnabled) return;
         draft=Logic.append(draft===null ? [] : draft,id);
     }
-    function cancel() { draft=null;captureQueue=[];visible=false; }
+    function cancel() {
+        activateLater.stop();pendingActivation=null;returnAnimation.stop();draft=null;returnWindow=null;returning=false;
+        captureQueue=[];visible=false;
+    }
+    function finishSelection() {
+        var client=returnWindow;
+        // Release KWin's scene/input grab before activating the real window.
+        // An activation exception must never leave the overlay visible.
+        returnAnimation.stop();visible=false;returning=false;captureQueue=[];
+        pendingActivation=client;activateLater.restart();
+    }
     function release(source) {
         if (returning || !windows.length) return;
         if (draft!==null) {
@@ -69,7 +80,7 @@ KWin.SceneEffect {
         }
         returnWindow=windows[selected];returnKey=Logic.key(returnWindow);
         returnSource=source;returnDestination=returnWindow.frameGeometry;
-        if (!configuration.Animations) { activate(returnWindow);visible=false;return; }
+        if (!configuration.Animations) {finishSelection();return;}
         returning=true;returnAnimation.restart();
     }
     function captureNext() {
@@ -80,7 +91,7 @@ KWin.SceneEffect {
         captureBusy=true;captureRequested(client);
     }
     function captured(id,texture) {
-        if (texture && findWindow(id)) {
+        if (visible && texture && findWindow(id)) {
             var copy=Object.assign({},snapshots);
             copy[id]={texture:texture,time:texture.capturedAt};snapshots=copy;
         }
@@ -122,9 +133,29 @@ KWin.SceneEffect {
         }
     }
     NumberAnimation {
-        id: returnAnimation;target: effect;property: "returnProgress";from: 0;to: 1
+        id: returnAnimation;objectName: "ReturnAnimation";target: effect;property: "returnProgress";from: 0;to: 1
         duration: effect.configuration.FinishMs;easing.type: Easing.OutCubic
-        onFinished: {effect.activate(effect.returnWindow);effect.visible=false;}
+        onFinished: effect.finishSelection()
+    }
+    Timer {
+        id: activateLater;interval: 20
+        onTriggered: {
+            var client=effect.pendingActivation;effect.pendingActivation=null;
+            try {effect.activate(client);}
+            catch(error) {console.warn("Switchinator: activation failed:",String(error));}
+        }
+    }
+    // This runs on the effect itself, independent of focus and view key handlers.
+    // A failed keyboard route cannot hold the desktop indefinitely.
+    Timer {
+        objectName: "SafetyExit";interval: 60000;running: effect.visible
+        onTriggered: {console.warn("Switchinator: safety timeout closed the overlay");effect.cancel();}
+    }
+    Timer {
+        objectName: "FinishGuard"
+        interval: Math.max(50,effect.configuration.FinishMs)+1000
+        running: effect.visible && effect.returning
+        onTriggered: effect.finishSelection()
     }
     Connections {
         target: KWin.Workspace
@@ -154,7 +185,20 @@ KWin.SceneEffect {
         // Restore it on the next event-loop turn, after the view is installed.
         Component.onCompleted: focusRestore.start()
         onIsHostChanged: if (isHost) focusRestore.restart()
-        Timer {id: focusRestore; interval: 0; onTriggered: if(scene.isHost && effect.visible && !effect.returning) scene.forceActiveFocus()}
+        Connections {
+            target: effect
+            function onVisibleChanged() {if(effect.visible) focusRestore.restart();}
+        }
+        function restoreInput() {
+            if (!isHost || !effect.visible || effect.returning) return;
+            // Focus the native KWin view first; item focus alone is insufficient
+            // for its never-shown rendering window, especially across outputs.
+            var view=effect.viewForScreen(scene.output);
+            if (!view) {focusRestore.restart();return;}
+            effect.activateView(view);
+            scene.forceActiveFocus();
+        }
+        Timer {id: focusRestore; interval: 20; onTriggered: scene.restoreInput()}
         function acceptSelection() {
             var selectedCard=cards.itemAt(effect.selected);
             if (selectedCard) effect.release(selectedCard.globalRect());
@@ -194,7 +238,7 @@ KWin.SceneEffect {
         }
         Repeater {
             id: cards
-            model: scene.isHost && !effect.returning ? effect.windows : []
+            model: effect.visible && scene.isHost && !effect.returning ? effect.windows : []
             delegate: Rectangle {
                 id: card
                 required property int index
@@ -255,12 +299,34 @@ KWin.SceneEffect {
                     Text {anchors.centerIn: parent;text: parent.position+1;color: effect.textColor}
                 }
                 MouseArea {
+                    objectName: "PreviewMouse-"+card.index
                     anchors.fill: parent;acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: function(mouse) {
                         if (mouse.button===Qt.RightButton) effect.draft=[];
-                        else {effect.selected=card.index;effect.choose(Logic.key(card.modelData));}
+                        else {
+                            effect.selected=card.index;
+                            if (effect.autoRotateEnabled) effect.choose(Logic.key(card.modelData));
+                            else effect.release(card.globalRect());
+                        }
                     }
                 }
+            }
+        }
+        Row {
+            objectName: "ExitControls"
+            visible: effect.visible && scene.isHost
+            anchors.top: parent.top;anchors.right: parent.right;anchors.margins: 12
+            spacing: 8;z: 10000
+            Rectangle {
+                width: 86;height: 36;radius: 10;color: effect.secondary
+                visible: !effect.returning
+                Text {anchors.centerIn: parent;text: "Select";color: effect.textColor}
+                MouseArea {objectName: "SelectButton";anchors.fill: parent;onClicked: scene.acceptSelection()}
+            }
+            Rectangle {
+                width: 86;height: 36;radius: 10;color: effect.secondary
+                Text {anchors.centerIn: parent;text: "Close";color: effect.textColor}
+                MouseArea {objectName: "CloseButton";anchors.fill: parent;onClicked: effect.cancel()}
             }
         }
         // Cache items live in the scene, independent of card delegates, so the

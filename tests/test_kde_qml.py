@@ -3,7 +3,7 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND','software')
 from pathlib import Path
-from PyQt6.QtCore import QUrl,QMetaObject,Q_ARG,Qt
+from PyQt6.QtCore import QUrl,QMetaObject,Q_ARG,Qt,QPointF,QObject
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtQml import QQmlEngine,QQmlComponent
 from PyQt6.QtQuick import QQuickWindow
@@ -31,6 +31,7 @@ class KdeQmlTests(unittest.TestCase):
         def pump(milliseconds): QTest.qWait(milliseconds)
         pump(600)
         self.assertTrue(scene.hasActiveFocus())
+        self.assertGreater(effect.property("viewActivationCount"),0)
         self.assertEqual(len(effect.property('snapshots').toVariant()),2)
         configuration=effect.property('configuration').toVariant();configuration.update(AutoRotate=True,Animations=False,RotationDelay=1)
         effect.setProperty('configuration',configuration)
@@ -40,6 +41,7 @@ class KdeQmlTests(unittest.TestCase):
         self.assertEqual(effect.property('draft').toVariant(),['first','second'])
         QTest.keyRelease(window,Qt.Key.Key_Alt)
         self.assertFalse(effect.property('visible'))
+        pump(40)
         self.assertTrue(effect.property('customSequence'))
         self.assertEqual(effect.property('sequence').toVariant(),['first','second'])
         probe_component=QQmlComponent(engine)
@@ -68,6 +70,53 @@ class KdeQmlTests(unittest.TestCase):
         pump(configuration['FinishMs']+80)
         self.assertFalse(effect.property('visible'))
         self.assertEqual(workspace.property('activeWindow'),workspace.property('first'))
+        # Mouse recovery must work when keyboard focus is deliberately absent.
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        pump(40);window.contentItem().setFocus(False)
+        close=scene.findChild(QObject,'CloseButton')
+        point=close.mapToScene(QPointF(close.width()/2,close.height()/2)).toPoint()
+        QTest.mouseClick(window,Qt.MouseButton.LeftButton,pos=point)
+        self.assertFalse(effect.property('visible'))
+        # Also select without routing any keyboard event.
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        pump(40);window.contentItem().setFocus(False)
+        select=scene.findChild(QObject,'SelectButton')
+        point=select.mapToScene(QPointF(select.width()/2,select.height()/2)).toPoint()
+        QTest.mouseClick(window,Qt.MouseButton.LeftButton,pos=point)
+        pump(configuration['FinishMs']+80)
+        self.assertFalse(effect.property('visible'))
+        self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
+        # Plain card clicks must activate directly when rotation is disabled.
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        pump(40);window.contentItem().setFocus(False)
+        def visual_item(item,name):
+            if item.objectName()==name:return item
+            for child in item.childItems():
+                found=visual_item(child,name)
+                if found is not None:return found
+            return None
+        card=visual_item(scene,'PreviewMouse-'+str(effect.property('selected')))
+        self.assertIsNotNone(card)
+        point=card.mapToScene(QPointF(card.width()/2,card.height()/2)).toPoint()
+        QTest.mouseClick(window,Qt.MouseButton.LeftButton,pos=point)
+        pump(configuration['FinishMs']+80)
+        self.assertFalse(effect.property('visible'))
+        self.assertEqual(workspace.property('activeWindow'),workspace.property('first'))
+        # A stopped animation must still close and activate through its guard.
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        pump(40);QTest.keyRelease(window,Qt.Key.Key_Alt)
+        animation=effect.findChild(QObject,'ReturnAnimation');animation.setProperty('paused',True)
+        guard=effect.findChild(QObject,'FinishGuard');guard.setProperty('interval',80)
+        pump(150)
+        self.assertFalse(effect.property('visible'))
+        self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
+        # The root timeout is independent of any native/QML input focus.
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        safety=effect.findChild(QObject,'SafetyExit');safety.setProperty('interval',80)
+        pump(120)
+        self.assertFalse(effect.property('visible'))
+        self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
+        warnings=[warning for warning in warnings if 'safety timeout' not in warning]
         self.assertEqual(warnings,[],"\n".join(warnings))
         window.close();scene.setParentItem(None);sip.delete(scene);sip.delete(window);sip.delete(effect);sip.delete(probe);app.processEvents()
 

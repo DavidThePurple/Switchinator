@@ -40,7 +40,9 @@ Run `./configure-kde.sh`, search for Switchinator, and use its configure button 
 - Animation toggle, appearance duration, and return-to-monitor duration.
 - Automatic rotation toggle and delay (1–300 seconds).
 
-The row opens near the pointer on its display, includes eligible windows from every display, and keeps the selected window on its original monitor. Escape cancels selection.
+The row opens near the pointer on its display, includes eligible windows from every display, and keeps the selected window on its original monitor. Escape cancels selection. The top-right **Select** and **Close** buttons work independently of keyboard focus. With automatic rotation off, clicking a preview selects it and closes the row. With rotation on, clicks continue to record the chosen sequence.
+
+As a recovery safeguard, the overlay automatically cancels after 60 seconds. A stalled return animation also has a completion timeout. These safeguards run on the effect itself, independently of its view or keyboard focus.
 
 When automatic rotation is enabled, click preview cards in order while keeping the modifier held. Badges show the order. Release the modifier to select the first chosen window and begin rotation. Right-click a card to reset to all-window rotation; Escape cancels sequence edits. Closed windows are skipped. An empty custom sequence after windows close does not fall back to unrelated windows. Sequences last until the effect is unloaded.
 
