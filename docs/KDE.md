@@ -46,7 +46,7 @@ When automatic rotation is enabled, click preview cards in order while keeping t
 
 ## Performance
 
-Cards use cached images; moving and tilting them does not continuously render their source windows. On opening the effect, preview requests are staggered rather than captured in one batch. Each window has a five-second minimum between snapshots. While open, the selected preview can be refreshed once every eight seconds. The capture item is detached after each snapshot. No preview capture timer runs while the effect is hidden, and rotation does not capture previews.
+Cards use frozen GPU textures; moving and tilting them does not continuously render their source windows. On opening the effect, preview requests are staggered rather than captured in one batch. Within an open switcher, each window has a five-second minimum between snapshots. KWin unloads the view when it closes, so the next opening creates fresh textures. While open, the selected preview can be refreshed once every eight seconds. The source window is detached after each texture snapshot; the cache is independent of the card so it survives the return animation. No preview capture timer runs while the effect is hidden, and rotation does not capture previews.
 
 KWin's `SceneEffect` replaces the normal desktop scene while open, so the effect also renders the desktop background, panels, and visible windows at their normal positions. Those underlying windows remain live; they are separate from the cached card previews. This rendering path needs real-device performance testing.
 
@@ -78,8 +78,10 @@ kpackagetool6 --type KWin/Effect --remove switchinator
 ```sh
 /usr/bin/python3 -m unittest discover -s tests -v
 node tests/test_kde_logic.js
+# Optional: requires PySide6; exercises a real invisible QQuickRenderControl window.
+python3 tests/check_kde_rendercontrol.py
 ```
 
-Python checks need PyQt5/python-xlib for Cinnamon and PyQt6 with QtQuick/QML for the headless KDE smoke test. Neither Python test dependencies nor the mock QML modules are installed by the KDE installer. The smoke test substitutes KWin APIs and cannot prove real compositor compatibility.
+Python checks need PyQt5/python-xlib for Cinnamon and PyQt6 with QtQuick/QML for the headless KDE smoke test. Neither Python test dependencies nor the mock QML modules are installed by the KDE installer. The smoke test substitutes KWin APIs and tests focus clearing, actual Alt-release and Escape events, animated activation, and the off toggle. The optional rendering-window check verifies frozen pixels and capture throttling inside a real invisible Qt window. Both use a stub window texture provider and cannot prove real compositor compatibility.
 
 KDE reference APIs: [declarative effects](https://develop.kde.org/docs/plasma/kwineffect/), [Workspace](https://api.kde.org/qml-org-kde-kwin-workspace.html), [WindowThumbnail](https://api.kde.org/qml-org-kde-kwin-windowthumbnail.html).

@@ -78,15 +78,16 @@ KWin.SceneEffect {
         var client=findWindow(id), cached=snapshots[id];
         if (!client || client.minimized || (cached && Date.now()-cached.time<5000)) return;
         captureBusy=true;captureRequested(client);
-        captureWatchdog.restart();
     }
-    function captured(id,result) {
-        if (result && findWindow(id)) {
+    function captured(id,texture) {
+        if (texture && findWindow(id)) {
             var copy=Object.assign({},snapshots);
-            // Retain the grab result; its temporary image URL depends on its lifetime.
-            copy[id]={url:result.url,result:result,time:Date.now()};snapshots=copy;
+            copy[id]={texture:texture,time:texture.capturedAt};snapshots=copy;
         }
-        captureBusy=false;captureWatchdog.stop();
+        captureBusy=false;
+    }
+    onVisibleChanged: if (!visible) {
+        captureQueue=[];captureBusy=false;snapshots={};
     }
     SystemPalette { id: palette; colorGroup: SystemPalette.Active }
     property color primary: configuration.UseTheme ? palette.window : configuration.PrimaryColor
@@ -108,7 +109,6 @@ KWin.SceneEffect {
         interval: 8000;repeat: true;running: effect.visible && !effect.returning
         onTriggered: { if (effect.windows.length) effect.captureQueue=effect.captureQueue.concat([Logic.key(effect.windows[effect.selected])]); }
     }
-    Timer { id: captureWatchdog;interval: 1000;onTriggered: effect.captureBusy=false }
     Timer {
         id: rotation
         interval: Math.max(1,effect.configuration.RotationDelay)*1000
@@ -150,7 +150,16 @@ KWin.SceneEffect {
         readonly property real centerY: Logic.clamp(effect.pointer.y-geometry.y,baseHeight*enlargement*.65+25,height-baseHeight*enlargement*.65-25)
         focus: isHost && !effect.returning
         clip: true
-        Component.onCompleted: if(isHost) forceActiveFocus()
+        // KWin clears its content item's focus after component completion.
+        // Restore it on the next event-loop turn, after the view is installed.
+        Component.onCompleted: focusRestore.start()
+        onIsHostChanged: if (isHost) focusRestore.restart()
+        Timer {id: focusRestore; interval: 0; onTriggered: if(scene.isHost && effect.visible && !effect.returning) scene.forceActiveFocus()}
+        function acceptSelection() {
+            var selectedCard=cards.itemAt(effect.selected);
+            if (selectedCard) effect.release(selectedCard.globalRect());
+            else effect.cancel();
+        }
         // SceneEffect replaces the normal scene. Preserve the desktop, panels, and
         // visible windows at their actual coordinates on each output.
         Repeater {
@@ -168,13 +177,13 @@ KWin.SceneEffect {
         }
         Keys.onPressed: function(event) {
             if (event.key===Qt.Key_Escape) {effect.cancel();event.accepted=true;}
+            else if (event.key===Qt.Key_Return || event.key===Qt.Key_Enter) {scene.acceptSelection();event.accepted=true;}
             else if (event.key===Qt.Key_Tab || event.key===Qt.Key_Backtab) {effect.cycle(event.key===Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier));event.accepted=true;}
         }
         Keys.onReleased: function(event) {
-            // Meta+Tab is the safe initial shortcut; Alt works when explicitly assigned.
+            // Both modifiers are supported if the user changes the shortcut.
             if ((event.key===Qt.Key_Alt || event.key===Qt.Key_Meta) && !event.isAutoRepeat) {
-                var selectedCard=cards.itemAt(effect.selected);
-                if (selectedCard) effect.release(selectedCard.globalRect());
+                scene.acceptSelection();
                 event.accepted=true;
             }
         }
@@ -235,8 +244,8 @@ KWin.SceneEffect {
                     NumberAnimation {to: 1+effect.configuration.StyleStrength*.004;duration: 1200;easing.type: Easing.InOutSine}
                     NumberAnimation {to: 1;duration: 1200;easing.type: Easing.InOutSine}
                 }
-                Image {anchors.fill: parent;anchors.margins: 9;anchors.bottomMargin: 36;source: card.snapshot ? card.snapshot.url : "";fillMode: Image.PreserveAspectFit}
-                Text {anchors.centerIn: parent;visible: !card.snapshot;text: modelData.minimized ? "Minimized" : "Loading preview…";color: effect.textColor}
+                TexturePreview {anchors.fill: parent;anchors.margins: 9;anchors.bottomMargin: 36;source: card.snapshot ? card.snapshot.texture : null}
+                Text {anchors.centerIn: parent;visible: !card.snapshot || !card.snapshot.time;text: modelData.minimized ? "Minimized" : "Loading preview…";color: effect.textColor}
                 Text {anchors.left: parent.left;anchors.right: parent.right;anchors.bottom: parent.bottom;anchors.margins: 12;text: modelData.caption;color: effect.textColor;elide: Text.ElideRight;font.pixelSize: 13}
                 Rectangle {
                     readonly property var order: effect.draft!==null ? effect.draft : effect.customSequence ? effect.sequence : []
@@ -254,21 +263,21 @@ KWin.SceneEffect {
                 }
             }
         }
-        // A single temporary thumbnail feeds cached previews. It is detached as
-        // soon as grabToImage completes, rather than remaining a live card.
-        KWin.WindowThumbnail {id: captureItem;x: -2000;y: -2000;width: 600;height: 450;client: null}
+        // Cache items live in the scene, independent of card delegates, so the
+        // selected texture survives while the cards disappear for the exit animation.
+        property var previewTextures: ({})
+        Component {id: previewComponent;PreviewTexture {}}
         Connections {
             target: effect;enabled: scene.isHost
-            function onCaptureRequested(client) {captureItem.client=client;captureStart.restart();}
-        }
-        Timer {
-            id: captureStart;interval: 32
-            onTriggered: {
-                var client=captureItem.client;
-                if (!client || client.deleted) {effect.captureBusy=false;captureItem.client=null;return;}
-                var id=Logic.key(client);
-                var started=captureItem.grabToImage(function(result) {effect.captured(id,result);captureItem.client=null;});
-                if (!started) {effect.captureBusy=false;captureItem.client=null;}
+            function onCaptureRequested(client) {
+                var id=Logic.key(client),texture=scene.previewTextures[id];
+                if (!texture) {
+                    texture=previewComponent.createObject(scene);
+                    var copy=Object.assign({},scene.previewTextures);copy[id]=texture;scene.previewTextures=copy;
+                    texture.captured.connect(function() {effect.captured(id,texture);});
+                    texture.failed.connect(function() {effect.captureBusy=false;console.warn("Switchinator: preview capture timed out");});
+                }
+                if (!texture.capture(client)) effect.captureBusy=false;
             }
         }
         Rectangle {
@@ -278,7 +287,7 @@ KWin.SceneEffect {
             width: Logic.mix(effect.returnSource.width,effect.returnDestination.width,effect.returnProgress)
             height: Logic.mix(effect.returnSource.height,effect.returnDestination.height,effect.returnProgress)
             radius: 16*(1-effect.returnProgress);color: effect.secondary;z: 1000
-            Image {anchors.fill: parent;source: effect.snapshots[effect.returnKey] ? effect.snapshots[effect.returnKey].url : "";fillMode: Image.PreserveAspectFit}
+            TexturePreview {anchors.fill: parent;source: effect.snapshots[effect.returnKey] ? effect.snapshots[effect.returnKey].texture : null}
         }
     }
 }
