@@ -36,9 +36,9 @@ def prepare(source, data_home):
         raise RuntimeError('Refusing to replace an unrelated effect at ' + str(target))
     ui = source / 'contents/ui'
     digest = hashlib.sha256()
-    for file in sorted(ui.iterdir()):
+    for file in sorted(ui.rglob("*")):
         if file.is_file():
-            digest.update(file.name.encode()); digest.update(file.read_bytes())
+            digest.update(file.relative_to(ui).as_posix().encode()); digest.update(file.read_bytes())
     revision = digest.hexdigest()[:20]
     target.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source / 'metadata.json', metadata)

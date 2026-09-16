@@ -1,8 +1,8 @@
 # KDE / SteamOS Desktop Mode (experimental)
 
-This package targets **KWin 6.4–6.x** on Wayland or X11. It is separate from the Cinnamon extension and uses a declarative KWin effect. Shortcut setup and external recovery require Python 3 (standard library only), `gdbus`, and a user systemd session; no PyQt or python-xlib is needed and installs in the user's KDE package directory. SteamOS's read-only system partition does not need to be unlocked.
+This package targets **KWin 6.4–6.x**. The native input path is verified on Wayland; X11 remains unverified. It is separate from the Cinnamon extension and uses a declarative KWin effect. Shortcut setup and external recovery require Python 3 (standard library only), `gdbus`, and a user systemd session; no PyQt or python-xlib is needed and installs in the user's KDE package directory. SteamOS's read-only system partition does not need to be unlocked.
 
-It is implemented and tested with mock KWin APIs under Qt 6, **not yet verified on an actual SteamOS/KWin session**. Treat it as an experimental backend until the on-device checklist below passes. SteamOS Gaming Mode is not supported.
+It is tested with mock KWin APIs under Qt 6 and in an isolated **real KWin 6.4.3 Wayland session**. Repeated normal/rapid selection, same-session upgrades, and external watchdog recovery are exercised there. Steam Deck hardware and docked-display behavior still need on-device verification. Treat it as an experimental backend until the on-device checklist below passes. SteamOS Gaming Mode is not supported.
 
 ## Install
 
@@ -39,6 +39,8 @@ Run `./configure-kde.sh`, search for Switchinator, and use its configure button 
 - None, tilt with animated entry and rocking, sway, float, or pulse.
 - Animation toggle, appearance duration, and return-to-monitor duration.
 - Automatic rotation toggle and delay (1–300 seconds).
+
+A small native modifier bridge tracks Alt release before KWin finishes creating its asynchronous view. Very quick Alt+Tab taps select directly when the view is not ready; they do not leave an overlay waiting for a release event that has already happened. The bundled x86-64 module requires Qt 6.4+ and glibc 2.34+; [source and rebuild instructions](../native/README.md) are included.
 
 The row opens near the pointer on its display, includes eligible windows from every display, and keeps the selected window on its original monitor. Escape cancels selection. The top-right **Select** and **Close** buttons work independently of keyboard focus. With automatic rotation off, clicking a preview selects it and closes the row. With rotation on, clicks continue to record the chosen sequence.
 

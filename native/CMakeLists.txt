@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.16)
+project(SwitchinatorInputState LANGUAGES CXX)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_CXX_STANDARD 17)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Qml)
+add_library(switchinatorinput MODULE inputstate.cpp)
+target_link_libraries(switchinatorinput PRIVATE Qt6::Core Qt6::Qml ${CMAKE_DL_LIBS})
+configure_file(qmldir qmldir COPYONLY)

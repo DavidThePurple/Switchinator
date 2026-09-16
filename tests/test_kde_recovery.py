@@ -75,6 +75,11 @@ class RecoveryTests(unittest.TestCase):
             runtime = directory / 'data/kwin-wayland/effects/switchinator/contents/ui/runtime'
             self.assertTrue((runtime / first / 'Runtime.qml').exists())
             self.assertTrue((runtime / second / 'Logic.js').exists())
+            bridge = source / 'contents/ui/InputBridge/qmldir'
+            bridge.write_text(bridge.read_text() + '\n# bridge update\n')
+            third = prepare.prepare(source, directory / 'data')
+            self.assertNotEqual(second, third)
+            self.assertTrue((runtime / third / 'InputBridge/libswitchinatorinput.so').exists())
 
     def test_migration_preserves_legacy_files_and_repeated_install_succeeds(self):
         prepare = module('prepare_kde_runtime')

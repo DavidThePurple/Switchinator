@@ -1,6 +1,7 @@
 import QtQuick
 import org.kde.kwin as KWin
 import "Logic.js" as Logic
+import "InputBridge" as NativeInput
 
 QtObject {
     id: effect
@@ -42,8 +43,28 @@ QtObject {
         if (!client.onAllDesktops && client.desktops.length) KWin.Workspace.currentDesktop=client.desktops[0];
         KWin.Workspace.activeWindow=client;
     }
+    property var inputState: NativeInput.InputState
+    readonly property int heldModifiers: inputState.modifiers & (Qt.AltModifier | Qt.MetaModifier)
+    onHeldModifiersChanged: if (visible && !heldModifiers) acceptSelected()
+    function acceptSelected() {
+        if (!visible || returning || !windows.length) return;
+        var output=null;
+        for (var i=0;i<KWin.Workspace.screens.length;i++)
+            if (KWin.Workspace.screens[i].name===host) output=KWin.Workspace.screens[i];
+        var view=output ? nativeEffect.viewForScreen(output) : null;
+        if (view && view.rootItem) {
+            view.rootItem.acceptSelection();
+        } else {
+            // A quick release can precede the first view. Select directly,
+            // rather than waiting for an event that can never reach that view.
+            returnWindow=windows[selected];finishSelection();
+        }
+    }
     function begin(backward) {
         console.log("Switchinator: shortcut received",backward);
+        if (!inputState.available) {
+            console.error("Switchinator: native modifier tracking unavailable");return;
+        }
         if (visible) { cycle(backward);return; }
         windows=availableWindows();
         console.log("Switchinator: eligible windows",windows.length);
@@ -55,6 +76,9 @@ QtObject {
         host=output.name;draft=null;returning=false;returnProgress=0;
         var active=windows.indexOf(KWin.Workspace.activeWindow);
         selected=((active<0 ? 0 : active)+(backward ? windows.length-1 : 1))%windows.length;
+        if (!heldModifiers) {
+            returnWindow=windows[selected];finishSelection();return;
+        }
         captureQueue=windows.map(Logic.key);captureBusy=false;visible=true;
     }
     function cycle(backward) {
@@ -79,7 +103,7 @@ QtObject {
     }
     function release(source) {
         console.log("Switchinator: selection requested",returning);
-        if (returning || !windows.length) return;
+        if (!visible || returning || !windows.length) return;
         if (draft!==null) {
             sequence=draft.slice();customSequence=sequence.length>0;
             if (sequence.length) {

@@ -3,7 +3,7 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 os.environ.setdefault('QT_QUICK_BACKEND','software')
 from pathlib import Path
-from PyQt6.QtCore import QUrl,QMetaObject,Q_ARG,Qt,QPointF,QObject
+from PyQt6.QtCore import QUrl,QMetaObject,Q_ARG,Qt,QPointF,QObject,pyqtProperty,pyqtSignal
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtQml import QQmlEngine,QQmlComponent
 from PyQt6.QtQuick import QQuickWindow
@@ -13,6 +13,17 @@ import unittest
 import importlib.util
 import shutil
 import tempfile
+
+class ModifierState(QObject):
+    changed=pyqtSignal()
+    def __init__(self):
+        super().__init__();self.value=Qt.KeyboardModifier.AltModifier.value
+    @pyqtProperty(bool, constant=True)
+    def available(self): return True
+    @pyqtProperty(int, notify=changed)
+    def modifiers(self): return self.value
+    def set_modifiers(self,value):
+        self.value=value;self.changed.emit()
 
 class KdeQmlTests(unittest.TestCase):
     def test_reload_uses_new_runtime_and_imports_in_same_engine(self):
@@ -52,6 +63,7 @@ class KdeQmlTests(unittest.TestCase):
         native=component.create()
         effect=native.property("runtime")
         self.assertIsNotNone(effect,'\n'.join(error.toString() for error in component.errors()))
+        modifiers=ModifierState();effect.setProperty("inputState",modifiers)
         QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
         self.assertTrue(effect.property('visible'))
         delegate=effect.property('delegate');scene=delegate.create(delegate.creationContext())
@@ -147,6 +159,20 @@ class KdeQmlTests(unittest.TestCase):
         safety=effect.findChild(QObject,'SafetyExit');safety.setProperty('interval',80)
         pump(120)
         self.assertFalse(effect.property('visible'))
+        self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
+        # A global shortcut may arrive after Alt is already up. Never grab
+        # input while waiting for a release event that has already happened.
+        modifiers.set_modifiers(0)
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        self.assertFalse(effect.property('visible'))
+        pump(40)
+        self.assertEqual(workspace.property('activeWindow'),workspace.property('first'))
+        # Release before any native view exists must also select and close.
+        modifiers.set_modifiers(Qt.KeyboardModifier.AltModifier.value)
+        QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
+        modifiers.set_modifiers(0)
+        self.assertFalse(effect.property('visible'))
+        pump(40)
         self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
         warnings=[warning for warning in warnings if 'safety timeout' not in warning]
         self.assertEqual(warnings,[],"\n".join(warnings))
