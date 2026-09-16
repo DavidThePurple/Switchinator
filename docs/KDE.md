@@ -12,17 +12,25 @@ From SteamOS **Desktop Mode**, inside the cloned repository:
 ./install.sh
 ```
 
-Alternatively select explicitly with `./install.sh --backend kde`. The installer checks the KWin version, then installs or upgrades the package with `kpackagetool6`. It does not enable the effect or modify shortcuts. Updates to an enabled effect may require disabling and re-enabling it in Desktop Effects.
+Alternatively select explicitly with `./install.sh --backend kde`. The installer checks the KWin version, installs or upgrades the package with `kpackagetool6`, loads it into the running KWin session, verifies that KWin lists it as loaded, and enables it for future desktop sessions. It reloads an existing copy during upgrades. If loading fails, it reports installation as incomplete instead of claiming success. Native shortcuts are not overwritten.
 
-Enable **Switchinator** in **System Settings → Desktop Effects**. Use **Meta+Tab** initially; use **Meta+Shift+Tab** to cycle backward. Hold the modifier to keep the row open, and release it to select.
+Once installation reports **installed and loaded**, use **Meta+Tab** initially; use **Meta+Shift+Tab** to cycle backward. Hold the modifier to keep the row open, and release it to select.
 
-To use **Alt+Tab**, open **System Settings → Shortcuts → KWin**, remove the conflicting native task-switcher shortcuts, and assign Alt+Tab / Alt+Shift+Tab to **Switchinator: next window / previous window**. This is deliberately a user choice. Record your original shortcuts so they can be restored later.
+Open the KDE effect settings directly, without navigating menus:
+
+```sh
+./configure-kde.sh
+```
+
+This launches `kcmshell6 kcm_kwin_effects` (or the System Settings module directly). Search for Switchinator and use its configure button. These are **KDE Desktop Mode settings**, not the Steam Gaming Mode settings screen.
+
+To use **Alt+Tab**, open **KDE System Settings → Shortcuts → KWin**, remove the conflicting native task-switcher shortcuts, and assign Alt+Tab / Alt+Shift+Tab to **Switchinator: next window / previous window**. This is deliberately a user choice. Record your original shortcuts so they can be restored later.
 
 The installer performs no driver changes and does not alter Cinnamon files, settings, or bindings.
 
 ## Features and settings
 
-Use the configure button beside Switchinator in Desktop Effects for:
+Run `./configure-kde.sh`, search for Switchinator, and use its configure button for:
 
 - Theme-derived or custom primary, secondary, accent, and text colors.
 - Optional row background, 60–200% preview size, independent selected-card enlargement.
@@ -44,7 +52,7 @@ Minimized or capture-excluded windows may lack a preview. Capture-excluded windo
 
 ## Disable or uninstall
 
-Disable Switchinator in Desktop Effects first. If you reassigned Alt+Tab, restore your native task-switcher shortcuts in Shortcuts. Then remove only this package:
+Run `./configure-kde.sh` and disable Switchinator first. If you reassigned Alt+Tab, restore your native task-switcher shortcuts in Shortcuts. Then remove only this package:
 
 ```sh
 kpackagetool6 --type KWin/Effect --remove switchinator
@@ -52,7 +60,7 @@ kpackagetool6 --type KWin/Effect --remove switchinator
 
 ## On-device verification checklist
 
-1. Enable with Meta+Tab first; verify native Alt+Tab is still available.
+1. Install, confirm the loaded verification succeeds, and test Meta+Tab; verify native Alt+Tab is still available.
 2. Test one display, docked displays, mixed scaling, and negative monitor coordinates.
 3. Test native Wayland and XWayland apps, obscured windows, and minimized windows.
 4. Check selection growth, in-tilt, rocking, all optional styles, and disabled animations.
