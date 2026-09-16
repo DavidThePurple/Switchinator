@@ -24,7 +24,7 @@ Open the KDE effect settings directly, without navigating menus:
 
 This launches `kcmshell6 kcm_kwin_effects` (or the System Settings module directly). Search for Switchinator and use its configure button. These are **KDE Desktop Mode settings**, not the Steam Gaming Mode settings screen.
 
-The original bindings are saved in `~/.config/switchinator/kde-shortcuts.json` (or your configured XDG config directory). Reinstalling retains that original backup. Meta+Tab, using the Windows-logo key, also remains available as a fallback.
+The original bindings are saved in `~/.config/switchinator/kde-shortcuts.json` (or your configured XDG config directory). Reinstalling retains that original backup. The installer assigns only Alt+Tab and Shift+Alt+Tab; it does not require an additional Meta-key binding.
 
 If the overlay does not open, run `./diagnose-kde.sh` after trying Alt+Tab and share its output. This reports the loaded effect, registered shortcut, stored rotation toggle, and recent KWin/QML errors.
 

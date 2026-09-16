@@ -17,8 +17,7 @@ class ShortcutTests(unittest.TestCase):
             if method=='action':return next((a for a in actions if int(args[0]) in state[tuple(a[:2])]),[])
             action=json.loads(args[0]);key=tuple(action[:2])
             if method=='shortcut':return list(reversed(state[key])) or [0]
-            if method=='setShortcut':state[key]=json.loads(args[1]);return list(reversed(state[key])) or [0]
-            if method=='setForeignShortcut':return None
+            if method=='setForeignShortcut':state[key]=json.loads(args[1]);return None
             raise AssertionError(method)
         original={key:value.copy() for key,value in state.items()}
         old_call,old_backup=module.call,module.BACKUP
@@ -27,11 +26,24 @@ class ShortcutTests(unittest.TestCase):
                 module.call=call;module.BACKUP=Path(directory)/'bindings.json'
                 module.setup()
                 self.assertEqual(state[('kwin','Walk Through Windows')],[])
-                self.assertIn(module.ALT_TAB,state[('kwin','SwitchinatorForward')])
+                self.assertEqual(state[('kwin','SwitchinatorForward')],[module.ALT_TAB])
+                self.assertEqual(state[('kwin','SwitchinatorBackward')],[module.ALT_SHIFT_TAB])
                 backup=module.BACKUP.read_text();module.setup()
                 self.assertEqual(module.BACKUP.read_text(),backup)
                 module.restore();self.assertEqual(state,original)
         finally:module.call=old_call;module.BACKUP=old_backup
+
+    def test_rejection_reports_requested_and_accepted_keys(self):
+        old_call=module.call
+        def call(method,*args):
+            if method=='setForeignShortcut':return None
+            if method=='shortcut':return [0]
+            raise AssertionError(method)
+        try:
+            module.call=call
+            with self.assertRaisesRegex(RuntimeError,r'requested=\[150994945\]; accepted=\[0\]'):
+                module.assign(['kwin','SwitchinatorForward','KWin','next'],[module.ALT_TAB])
+        finally:module.call=old_call
 
     def test_failed_assignment_restores_existing_bindings(self):
         import json
@@ -45,13 +57,12 @@ class ShortcutTests(unittest.TestCase):
             if method=='action':return next((a for a in actions if int(args[0]) in state[tuple(a[:2])]),[])
             action=json.loads(args[0]);key=tuple(action[:2])
             if method=='shortcut':return state[key].copy()
-            if method=='setShortcut':
+            if method=='setForeignShortcut':
                 keys=json.loads(args[1])
                 if not rejected and action[1]=='SwitchinatorForward' and module.ALT_TAB in keys:
                     rejected=True
                     raise RuntimeError('Simulated shortcut rejection')
-                state[key]=keys;return keys.copy()
-            if method=='setForeignShortcut':return None
+                state[key]=keys;return None
             raise AssertionError(method)
         old_call,old_backup=module.call,module.BACKUP
         try:

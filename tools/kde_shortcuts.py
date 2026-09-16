@@ -23,10 +23,13 @@ def key_set(keys):
     return {key for key in keys if key}
 
 def assign(action,keys):
-    actual=call('setShortcut',json.dumps(action),json.dumps(keys),'6') # SetPresent | NoAutoloading
-    call('setForeignShortcut',json.dumps(action),json.dumps(actual)) # notify the running QAction owner
-    if key_set(actual)!=key_set(keys):raise RuntimeError('KDE rejected a requested shortcut for '+action[1])
-    if key_set(shortcut(action))!=key_set(keys):raise RuntimeError('Shortcut verification failed for '+action[1])
+    # This process changes KWin's QAction, so use KDE's foreign-owner API.
+    # It persists the keys and notifies the running shortcut owner in one call.
+    call('setForeignShortcut',json.dumps(action),json.dumps(keys))
+    actual=shortcut(action)
+    if key_set(actual)!=key_set(keys):
+        raise RuntimeError('KDE rejected shortcuts for '+action[1]+
+                           '; requested='+str(keys)+'; accepted='+str(actual))
 
 def setup():
     actions=call('allActionsForComponent',json.dumps(['kwin','','','']))
@@ -40,8 +43,8 @@ def setup():
         if owner[0]!='kwin':raise RuntimeError('Alt+Tab is owned by another application; it was left unchanged.')
         if owner[1] not in ['SwitchinatorForward','SwitchinatorBackward']:
             changes[owner[1]]=(owner,[value for value in shortcut(owner) if value not in [ALT_TAB,ALT_SHIFT_TAB,ALT_SHIFT_BACKTAB]])
-    changes['SwitchinatorForward']=(by_name['SwitchinatorForward'],[ALT_TAB,META_TAB])
-    changes['SwitchinatorBackward']=(by_name['SwitchinatorBackward'],[ALT_SHIFT_TAB,META_SHIFT_TAB])
+    changes['SwitchinatorForward']=(by_name['SwitchinatorForward'],[ALT_TAB])
+    changes['SwitchinatorBackward']=(by_name['SwitchinatorBackward'],[ALT_SHIFT_TAB])
     original=[{'action':action,'keys':shortcut(action)} for action,_ in changes.values()]
     BACKUP.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
     # Retain the original bindings across reinstallations; include newly affected actions.
