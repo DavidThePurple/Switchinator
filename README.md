@@ -34,6 +34,16 @@ Open **System Settings → Extensions → Card Switcher → Configure**. Setting
 
 Preview size ranges from 60–200%; selected-card enlargement ranges from 1–3.5×. Both are limited to fit the display. Theme colors are enabled by default; the accent can be overridden independently. Disable theme colors to select every color yourself.
 
+## Automatic rotation
+
+Open **Configure → Automatic window rotation**, enable **Automatically rotate between windows**, and choose a delay from 1–300 seconds (default: 5). Rotation starts after that delay and normally includes all eligible windows across displays.
+
+To choose an order, hold **Alt+Tab**, keep **Alt** held, and **left-click preview cards in the desired sequence**. Numbered badges show the order. The first click starts a new sequence; repeated clicks on the same card do not duplicate it. Use Tab to reach cards outside the visible row. Release Alt to activate the first chosen window and start cycling through the sequence.
+
+Rotation pauses while Alt is held or the switcher is open. **Escape** cancels sequence edits. **Right-click** a card while holding Alt, then release Alt, to return to all-window rotation. Disable the rotation toggle to stop automatic switching. Closed windows are skipped; if all chosen windows close, custom rotation waits rather than switching to unrelated windows.
+
+Custom sequences last for the current extension session. Rotation uses window IDs and never captures thumbnails on its timer.
+
 ## Disable or uninstall
 
 Disable **Card Switcher** in Extensions to stop the helper process and restore the saved Cinnamon Alt+Tab bindings. To uninstall, disable it first, then remove `~/.local/share/cinnamon/extensions/card-switcher@everlasting.media`.

@@ -5,6 +5,28 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from Xlib import X, XK, display, protocol
 from Xlib.ext import composite
 
+class AutoRotation:
+    def __init__(self):
+        self.enabled=False;self.delay=5;self.next_at=0;self.order=[];self.custom=False
+    def configure(self,enabled,delay,now):
+        delay=max(1,float(delay))
+        if enabled!=self.enabled or delay!=self.delay:self.next_at=now+delay
+        self.enabled=bool(enabled);self.delay=delay
+    def set_sequence(self,sequence,now):
+        self.order=list(dict.fromkeys(sequence));self.custom=bool(self.order);self.next_at=now+self.delay
+    def next_window(self,windows,active,now,paused=False):
+        if not self.enabled:return None
+        if paused:self.next_at=now+self.delay;return None
+        live=set(windows)
+        self.order=[wid for wid in self.order if wid in live]
+        if not self.custom:self.order.extend(wid for wid in windows if wid not in self.order)
+        if now<self.next_at:return None
+        self.next_at=now+self.delay
+        if not self.order:return None
+        index=(self.order.index(active)+1)%len(self.order) if active in self.order else 0
+        target=self.order[index]
+        return target if target!=active else None
+
 class Switcher(QtWidgets.QWidget):
     def __init__(self):
         super().__init__(None, QtCore.Qt.FramelessWindowHint | QtCore.Qt.Tool | QtCore.Qt.X11BypassWindowManagerHint | QtCore.Qt.WindowStaysOnTopHint)
@@ -12,6 +34,7 @@ class Switcher(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating)
         self.x = display.Display(); self.root = self.x.screen().root
         self.atoms = {};self.redirected=set();self.last_prime=0;self.preview_cache={}
+        self.rotation=AutoRotation();self.sequence_draft=None;self.last_config_check=0
         self.items=[]; self.index=0; self.progress=0; self.phase='hidden'; self.scales=[]
         self.tab=self.x.keysym_to_keycode(XK.string_to_keysym('Tab'))
         self.alts={self.x.keysym_to_keycode(XK.string_to_keysym(k)) for k in ('Alt_L','Alt_R')}
@@ -115,7 +138,7 @@ class Switcher(QtWidgets.QWidget):
             finally:
                 if pixmap:pixmap.free(onerror=lambda error,request: True)
         return QtGui.QPixmap()
-    def collect(self):
+    def collect(self,with_previews=True):
         ids=self.prop(self.root,'_NET_CLIENT_LIST_STACKING');active=self.prop(self.root,'_NET_ACTIVE_WINDOW')
         ids=list(ids) if ids is not None else []
         if active is not None and int(active[0]) in ids:ids.remove(int(active[0]));ids.append(int(active[0]))
@@ -133,12 +156,12 @@ class Switcher(QtWidgets.QWidget):
                 g=w.get_geometry();pos=self.root.translate_coords(w,0,0)
                 rect=QtCore.QRect(pos.x,pos.y,g.width,g.height)
                 screen=QtWidgets.QApplication.screenAt(rect.center()) or QtWidgets.QApplication.primaryScreen()
-                pix=self.capture(w)
+                pix=self.capture(w) if with_previews else QtGui.QPixmap()
                 items.append({'id':int(wid),'title':title,'rect':rect,'pix':pix})
             except Exception:continue
         return items
     def begin(self,back=False):
-        self.loadconfig()
+        self.loadconfig();self.sequence_draft=None
         if self.config.get('native_dir'):
             try:
                 Path(self.config['native_dir'],'capture-request').write_text(str(time.monotonic()))
@@ -181,19 +204,61 @@ class Switcher(QtWidgets.QWidget):
     def finish(self,cancel=False):
         if self.phase!='row':return
         self.x.ungrab_keyboard(X.CurrentTime);self.x.flush()
-        if cancel:self.hide();self.phase='hidden';return
+        if cancel:
+            self.sequence_draft=None;self.hide();self.phase='hidden';self.rotation.next_at=time.monotonic()+self.rotation.delay;return
+        if self.sequence_draft is not None:
+            self.rotation.set_sequence(self.sequence_draft,time.monotonic())
+            if self.sequence_draft:
+                self.index=next((i for i,item in enumerate(self.items) if item['id']==self.sequence_draft[0]),self.index)
+            self.sequence_draft=None
         if not self.config.get('animations_enabled',True):
             self.activate();return
         self.phase='finish';self.started=time.monotonic();self.source=self.cardrect(self.index)
     def activate(self):
         item=self.items[self.index]
+        self.activate_window(item['id'])
+        self.hide();self.phase='hidden';self.rotation.next_at=time.monotonic()+self.rotation.delay
+    def activate_window(self,wid):
         try:
-            w=self.x.create_resource_object('window',item['id'])
+            w=self.x.create_resource_object('window',wid)
             ev=protocol.event.ClientMessage(window=w,client_type=self.atom('_NET_ACTIVE_WINDOW'),data=(32,[2,X.CurrentTime,0,0,0]))
             self.root.send_event(ev,event_mask=X.SubstructureRedirectMask|X.SubstructureNotifyMask);self.x.flush()
         except Exception:pass
-        self.hide();self.phase='hidden'
+    def alt_held(self):
+        keys=self.x.query_keymap()
+        return any(keys[k//8]&(1<<(k%8)) for k in self.alts)
+    def automation_tick(self):
+        now=time.monotonic()
+        if now-self.last_config_check>=.5:
+            self.loadconfig();self.last_config_check=now
+            self.rotation.configure(self.config.get('auto_rotate',False),self.config.get('rotation_delay',5),now)
+        if not self.rotation.enabled:return
+        if self.phase!='hidden' or self.alt_held():
+            self.rotation.next_at=now+self.rotation.delay;return
+        if now<self.rotation.next_at:return
+        windows=[item['id'] for item in self.collect(False)]
+        active=self.prop(self.root,'_NET_ACTIVE_WINDOW')
+        target=self.rotation.next_window(windows,int(active[0]) if active is not None else None,now)
+        if target is not None:self.activate_window(target)
+    def mousePressEvent(self,event):
+        if self.phase!='row' or not self.alt_held():return
+        if event.button()==QtCore.Qt.RightButton:
+            self.sequence_draft=[];self.last_render=None;self.repaint_cards();return
+        if event.button()!=QtCore.Qt.LeftButton:return
+        panel=QtCore.QRectF(self.cx-self.rowwidth/2,self.cy-self.panelheight/2,self.rowwidth,self.panelheight)
+        order=[self.index]+[i for i in reversed(range(len(self.items))) if i!=self.index]
+        for i in order:
+            rect=self.cardrect(i)
+            if i!=self.index:rect=rect.intersected(panel)
+            if not rect.contains(event.localPos()):continue
+            self.index=i
+            if self.rotation.enabled:
+                if self.sequence_draft is None:self.sequence_draft=[]
+                wid=self.items[i]['id']
+                if wid not in self.sequence_draft:self.sequence_draft.append(wid)
+            self.last_render=None;self.repaint_cards();break
     def tick(self):
+        self.automation_tick()
         if self.phase=='hidden' and time.monotonic()-self.last_prime>.5:
             self.prime_windows();self.last_prime=time.monotonic()
         try:
@@ -271,6 +336,11 @@ class Switcher(QtWidgets.QWidget):
             p.setPen(QtGui.QColor('#899bb8'));p.drawText(preview,QtCore.Qt.AlignCenter,'Minimized · preview unavailable')
         p.setBrush(QtCore.Qt.NoBrush);p.setPen(QtGui.QPen(self.color('accent','#79b8ff') if selected else self.color('border','#384253'),3 if selected else 1));p.drawPath(path)
         p.setFont(QtGui.QFont('Sans',10));p.setPen(self.color('text','#edf3ff'))
+        sequence=self.sequence_draft if self.sequence_draft is not None else (self.rotation.order if self.rotation.custom else [])
+        if self.phase=='row' and self.rotation.enabled and item['id'] in sequence:
+            badge=QtCore.QRectF(r.right()-38,r.top()+10,26,26)
+            p.setBrush(self.color('accent','#79b8ff'));p.setPen(QtCore.Qt.NoPen);p.drawEllipse(badge)
+            p.setPen(self.color('text','#edf3ff'));p.drawText(badge,QtCore.Qt.AlignCenter,str(sequence.index(item['id'])+1))
         title=QtGui.QFontMetrics(p.font()).elidedText(item['title'],QtCore.Qt.ElideRight,int(r.width()-24))
         p.drawText(r.adjusted(12,r.height()-32,-12,-8),QtCore.Qt.AlignVCenter,title);p.restore()
     def selected_card(self,p,fade):

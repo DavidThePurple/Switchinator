@@ -74,6 +74,7 @@ function writeConfig() {
         try { colors = themeColors(); } catch(e) { global.logError(e); }
         if (options.customAccent) colors.accent = options.accentColor;
     }
+    colors.auto_rotate=options.autoRotate;colors.rotation_delay=options.rotationDelay;
     colors.native_dir=GLib.build_filenamev([GLib.get_user_runtime_dir(),metadata.uuid]);
     colors.open_ms=options.openMs;colors.finish_ms=options.finishMs;colors.selected_scale=options.selectedScale;colors.preview_size=options.previewSize;colors.animations_enabled=options.animationsEnabled;colors.selected_style=options.selectedStyle;colors.style_strength=options.styleStrength;colors.show_background=options.showBackground;
     let dir=GLib.build_filenamev([GLib.get_user_config_dir(),metadata.uuid]);
@@ -98,7 +99,7 @@ function enable() {
     stopSwitcherProcesses();
     active=true;
     settings=new Settings.ExtensionSettings(options,metadata.uuid);
-    for (let [key,property] of [['use-theme','useTheme'],['primary-color','primaryColor'],['secondary-color','secondaryColor'],['accent-color','accentColor'],['custom-accent','customAccent'],['custom-text','customText'],['open-ms','openMs'],['finish-ms','finishMs'],['selected-scale','selectedScale'],['preview-size','previewSize'],['animations-enabled','animationsEnabled'],['selected-style','selectedStyle'],['style-strength','styleStrength'],['show-background','showBackground']])
+    for (let [key,property] of [['use-theme','useTheme'],['primary-color','primaryColor'],['secondary-color','secondaryColor'],['accent-color','accentColor'],['custom-accent','customAccent'],['custom-text','customText'],['open-ms','openMs'],['finish-ms','finishMs'],['selected-scale','selectedScale'],['preview-size','previewSize'],['animations-enabled','animationsEnabled'],['selected-style','selectedStyle'],['style-strength','styleStrength'],['show-background','showBackground'],['auto-rotate','autoRotate'],['rotation-delay','rotationDelay']])
         settings.bindProperty(Settings.BindingDirection.IN,key,property,()=>{ if(active)writeConfig(); },null);
     wm=new Gio.Settings({schema_id:'org.cinnamon.desktop.keybindings.wm'});
     previous={};
