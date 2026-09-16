@@ -1,6 +1,6 @@
 # KDE / SteamOS Desktop Mode (experimental)
 
-This package targets **KWin 6.4–6.x** on Wayland or X11. It is separate from the Cinnamon extension and uses a declarative KWin effect. It requires no Python dependencies and installs in the user's KDE package directory. SteamOS's read-only system partition does not need to be unlocked.
+This package targets **KWin 6.4–6.x** on Wayland or X11. It is separate from the Cinnamon extension and uses a declarative KWin effect. Shortcut setup requires Python 3 (standard library only) and `gdbus`; no PyQt or python-xlib is needed and installs in the user's KDE package directory. SteamOS's read-only system partition does not need to be unlocked.
 
 It is implemented and tested with mock KWin APIs under Qt 6, **not yet verified on an actual SteamOS/KWin session**. Treat it as an experimental backend until the on-device checklist below passes. SteamOS Gaming Mode is not supported.
 
@@ -12,9 +12,9 @@ From SteamOS **Desktop Mode**, inside the cloned repository:
 ./install.sh
 ```
 
-Alternatively select explicitly with `./install.sh --backend kde`. The installer checks the KWin version, installs or upgrades the package with `kpackagetool6`, loads it into the running KWin session, verifies that KWin lists it as loaded, and enables it for future desktop sessions. It reloads an existing copy during upgrades. If loading fails, it reports installation as incomplete instead of claiming success. Native shortcuts are not overwritten.
+Alternatively select explicitly with `./install.sh --backend kde`. The installer checks the KWin version, installs or upgrades the package with `kpackagetool6`, loads it into the running KWin session, verifies that KWin lists it as loaded, and enables it for future desktop sessions. It reloads an existing copy during upgrades. If loading fails, it reports installation as incomplete instead of claiming success. It backs up the conflicting KWin shortcuts and assigns Alt+Tab / Shift+Alt+Tab to Switchinator. Shortcut registration and assignment are verified before reporting success.
 
-Once installation reports **installed and loaded**, use **Meta+Tab** initially; use **Meta+Shift+Tab** to cycle backward. Hold the modifier to keep the row open, and release it to select.
+Once installation reports **installed and loaded**, use **Alt+Tab**; use **Shift+Alt+Tab** to cycle backward. Hold the modifier to keep the row open, and release it to select.
 
 Open the KDE effect settings directly, without navigating menus:
 
@@ -24,7 +24,9 @@ Open the KDE effect settings directly, without navigating menus:
 
 This launches `kcmshell6 kcm_kwin_effects` (or the System Settings module directly). Search for Switchinator and use its configure button. These are **KDE Desktop Mode settings**, not the Steam Gaming Mode settings screen.
 
-To use **Alt+Tab**, open **KDE System Settings → Shortcuts → KWin**, remove the conflicting native task-switcher shortcuts, and assign Alt+Tab / Alt+Shift+Tab to **Switchinator: next window / previous window**. This is deliberately a user choice. Record your original shortcuts so they can be restored later.
+The original bindings are saved in `~/.config/switchinator/kde-shortcuts.json` (or your configured XDG config directory). Reinstalling retains that original backup. Meta+Tab, using the Windows-logo key, also remains available as a fallback.
+
+If the overlay does not open, run `./diagnose-kde.sh` after trying Alt+Tab and share its output. This reports the loaded effect, registered shortcut, stored rotation toggle, and recent KWin/QML errors.
 
 The installer performs no driver changes and does not alter Cinnamon files, settings, or bindings.
 
@@ -52,15 +54,16 @@ Minimized or capture-excluded windows may lack a preview. Capture-excluded windo
 
 ## Disable or uninstall
 
-Run `./configure-kde.sh` and disable Switchinator first. If you reassigned Alt+Tab, restore your native task-switcher shortcuts in Shortcuts. Then remove only this package:
+Run `./configure-kde.sh` and disable Switchinator first. Restore the saved native shortcuts, then remove only this package:
 
 ```sh
+python3 tools/kde_shortcuts.py --restore
 kpackagetool6 --type KWin/Effect --remove switchinator
 ```
 
 ## On-device verification checklist
 
-1. Install, confirm the loaded verification succeeds, and test Meta+Tab; verify native Alt+Tab is still available.
+1. Install, confirm the loaded verification succeeds, and test Alt+Tab and Shift+Alt+Tab; verify the original shortcut backup exists.
 2. Test one display, docked displays, mixed scaling, and negative monitor coordinates.
 3. Test native Wayland and XWayland apps, obscured windows, and minimized windows.
 4. Check selection growth, in-tilt, rocking, all optional styles, and disabled animations.
@@ -68,7 +71,7 @@ kpackagetool6 --type KWin/Effect --remove switchinator
 6. Enable rotation at a comfortable delay, test the default order, then click a custom sequence.
 7. Close one chosen window and then all chosen windows; confirm no unrelated windows activate.
 8. Check frame pacing with animated wallpapers and many windows; confirm hiding the effect stops capture work.
-9. Disable and re-enable; verify shortcuts, focus, and ordinary KDE desktop behavior.
+9. Disable automatic rotation, open and cancel the switcher, and wait beyond the delay; confirm no window activates automatically. Disable and re-enable the effect; verify shortcuts and ordinary KDE desktop behavior.
 
 ## Development checks
 

@@ -34,6 +34,7 @@ case "$*" in
 esac
 """)
             (commands/'kwriteconfig6').write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$SWITCHINATOR_TEST_LOG"\n')
+            (commands/'python3').write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$SWITCHINATOR_TEST_LOG"\n')
             for command in commands.iterdir():command.chmod(0o755)
             env=dict(os.environ,PATH=str(commands)+':'+os.environ['PATH'],XDG_DATA_HOME=str(directory/'data'),SWITCHINATOR_TEST_LOG=str(log),SWITCHINATOR_TEST_STATE=str(directory/'loaded'))
             result=subprocess.run([str(ROOT/'install-kde.sh')],env=env,capture_output=True,text=True)
@@ -44,6 +45,7 @@ esac
             self.assertIn('loadEffect',log.read_text())
             self.assertIn('--key switchinatorEnabled true',log.read_text())
             self.assertIn('installed and loaded',result.stdout)
+            self.assertIn('kde_shortcuts.py',log.read_text())
             # A load failure must not print success or enable a broken effect.
             log.unlink();env['SWITCHINATOR_TEST_FAIL']='1'
             result=subprocess.run([str(ROOT/'install-kde.sh')],env=env,capture_output=True,text=True)

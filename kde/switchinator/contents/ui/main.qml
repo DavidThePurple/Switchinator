@@ -4,6 +4,7 @@ import "Logic.js" as Logic
 
 KWin.SceneEffect {
     id: effect
+    readonly property bool autoRotateEnabled: configuration.AutoRotate === true
     property var windows: []
     property var sequence: []
     property var draft: null
@@ -35,8 +36,11 @@ KWin.SceneEffect {
         KWin.Workspace.activeWindow=client;
     }
     function begin(backward) {
+        console.log("Switchinator: shortcut received",backward);
         if (visible) { cycle(backward);return; }
-        windows=availableWindows();if (!windows.length) return;
+        windows=availableWindows();
+        console.log("Switchinator: eligible windows",windows.length);
+        if (!windows.length) return;
         pointer=KWin.Workspace.cursorPos;
         var output=KWin.Workspace.activeScreen;
         for (var i=0;i<KWin.Workspace.screens.length;i++)
@@ -45,16 +49,15 @@ KWin.SceneEffect {
         var active=windows.indexOf(KWin.Workspace.activeWindow);
         selected=((active<0 ? 0 : active)+(backward ? windows.length-1 : 1))%windows.length;
         captureQueue=windows.map(Logic.key);captureBusy=false;visible=true;
-        rotation.restart();
     }
     function cycle(backward) {
         if (!returning && windows.length) selected=(selected+(backward ? windows.length-1 : 1))%windows.length;
     }
     function choose(id) {
-        if (!configuration.AutoRotate) return;
+        if (!autoRotateEnabled) return;
         draft=Logic.append(draft===null ? [] : draft,id);
     }
-    function cancel() { draft=null;captureQueue=[];visible=false;rotation.restart(); }
+    function cancel() { draft=null;captureQueue=[];visible=false; }
     function release(source) {
         if (returning || !windows.length) return;
         if (draft!==null) {
@@ -66,7 +69,7 @@ KWin.SceneEffect {
         }
         returnWindow=windows[selected];returnKey=Logic.key(returnWindow);
         returnSource=source;returnDestination=returnWindow.frameGeometry;
-        if (!configuration.Animations) { activate(returnWindow);visible=false;rotation.restart();return; }
+        if (!configuration.Animations) { activate(returnWindow);visible=false;return; }
         returning=true;returnAnimation.restart();
     }
     function captureNext() {
@@ -91,7 +94,7 @@ KWin.SceneEffect {
     property color accent: configuration.UseTheme && !configuration.CustomAccent ? palette.highlight : configuration.AccentColor
     property color textColor: configuration.UseTheme ? palette.windowText : configuration.TextColor
 
-    // A separate shortcut avoids silently overwriting the user's existing Alt+Tab.
+    // The installer assigns Alt+Tab after backing up conflicting KWin shortcuts.
     KWin.ShortcutHandler {
         name: "SwitchinatorForward";text: "Switchinator: next window";sequence: "Meta+Tab"
         onActivated: effect.begin(false)
@@ -109,8 +112,9 @@ KWin.SceneEffect {
     Timer {
         id: rotation
         interval: Math.max(1,effect.configuration.RotationDelay)*1000
-        repeat: true;running: effect.configuration.AutoRotate && !effect.visible
+        repeat: true;running: effect.autoRotateEnabled && !effect.visible
         onTriggered: {
+            if (!effect.autoRotateEnabled || effect.visible) return;
             var live=effect.availableWindows();
             effect.sequence=Logic.nextOrder(effect.sequence,live,effect.customSequence);
             var target=Logic.nextTarget(effect.sequence,KWin.Workspace.activeWindow ? Logic.key(KWin.Workspace.activeWindow) : "");
@@ -120,7 +124,7 @@ KWin.SceneEffect {
     NumberAnimation {
         id: returnAnimation;target: effect;property: "returnProgress";from: 0;to: 1
         duration: effect.configuration.FinishMs;easing.type: Easing.OutCubic
-        onFinished: {effect.activate(effect.returnWindow);effect.visible=false;rotation.restart();}
+        onFinished: {effect.activate(effect.returnWindow);effect.visible=false;}
     }
     Connections {
         target: KWin.Workspace
@@ -237,7 +241,7 @@ KWin.SceneEffect {
                 Rectangle {
                     readonly property var order: effect.draft!==null ? effect.draft : effect.customSequence ? effect.sequence : []
                     readonly property int position: order.indexOf(Logic.key(modelData))
-                    visible: effect.configuration.AutoRotate && position>=0
+                    visible: effect.autoRotateEnabled && position>=0
                     width: 26;height: 26;radius: 13;color: effect.accent;anchors.right: parent.right;anchors.top: parent.top;anchors.margins: 10
                     Text {anchors.centerIn: parent;text: parent.position+1;color: effect.textColor}
                 }

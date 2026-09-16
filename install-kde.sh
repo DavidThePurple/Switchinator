@@ -45,11 +45,15 @@ if ! reply="$(loaded_effects 2>&1)" || ! is_loaded "$reply";then
     echo 'Inspect the desktop log for QML errors: journalctl --user -b | grep -i switchinator' >&2
     exit 1
 fi
+command -v python3 >/dev/null && command -v gdbus >/dev/null || {
+    echo 'Effect loaded, but automatic Alt+Tab setup requires python3 and gdbus.' >&2;exit 1;
+}
+python3 "$root_dir/tools/kde_shortcuts.py"
 kwriteconfig6 --file kwinrc --group Plugins --key switchinatorEnabled true
 cat <<'MESSAGE'
 Switchinator installed and loaded. Enabled for future desktop sessions.
-Try Meta+Tab (hold Meta, press Tab; release Meta to select).
+Try Alt+Tab (hold Alt, press Tab; release Alt to select).
 Open settings directly: ./configure-kde.sh
-To assign Alt+Tab, open KDE Shortcuts and replace the conflicting native
-window-switcher shortcuts with Switchinator's next/previous shortcuts.
+Original shortcut backup: ~/.config/switchinator/kde-shortcuts.json
+If the overlay does not open, run: ./diagnose-kde.sh
 MESSAGE
