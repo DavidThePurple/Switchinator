@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='utf-8'?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+  <kcfgfile name="" />
+  <group name="">
+    <entry name="UseTheme" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="CustomAccent" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="PrimaryColor" type="Color">
+      <default>#0c111a</default>
+    </entry>
+    <entry name="SecondaryColor" type="Color">
+      <default>#202735</default>
+    </entry>
+    <entry name="AccentColor" type="Color">
+      <default>#79b8ff</default>
+    </entry>
+    <entry name="TextColor" type="Color">
+      <default>#edf3ff</default>
+    </entry>
+    <entry name="PreviewSize" type="Int">
+      <default>100</default>
+      <min>60</min>
+      <max>200</max>
+    </entry>
+    <entry name="SelectedScale" type="Double">
+      <default>1.16</default>
+      <min>1</min>
+      <max>3.5</max>
+    </entry>
+    <entry name="Animations" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="SelectedStyle" type="Int">
+      <default>1</default>
+    </entry>
+    <entry name="StyleStrength" type="Int">
+      <default>6</default>
+      <min>1</min>
+      <max>15</max>
+    </entry>
+    <entry name="ShowBackground" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="FinishMs" type="Int">
+      <default>360</default>
+      <min>50</min>
+      <max>1200</max>
+    </entry>
+    <entry name="AutoRotate" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="RotationDelay" type="Int">
+      <default>5</default>
+      <min>1</min>
+      <max>300</max>
+    </entry>
+    <entry name="OpenMs" type="Int">
+      <default>240</default>
+      <min>50</min>
+      <max>1000</max>
+    </entry>
+  </group>
+</kcfg>

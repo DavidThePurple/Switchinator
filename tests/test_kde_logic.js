@@ -1,0 +1,18 @@
+const fs=require('fs'), vm=require('vm'), assert=require('assert');
+const logic={};vm.createContext(logic);vm.runInContext(fs.readFileSync('kde/switchinator/contents/ui/Logic.js','utf8'),logic);
+const window=id=>({internalId:id,normalWindow:true});
+assert(logic.eligible(window('a')));
+for(const flag of ['deleted','skipSwitcher','skipTaskbar','excludeFromCapture'])assert(!logic.eligible({...window('a'),[flag]:true}));
+assert(!logic.eligible({internalId:'desktop',desktopWindow:true}));
+assert.equal(logic.nextTarget(['a','b','c'],'a'),'b');assert.equal(logic.nextTarget(['a','b','c'],'c'),'a');
+assert.equal(logic.nextTarget(['a'],'a'),null);assert.equal(logic.nextTarget([],'a'),null);
+const plain=value=>Array.from(value);
+assert.deepEqual(plain(logic.nextOrder(['a','b'],[window('b'),window('c')],false)),['b','c']);
+assert.deepEqual(plain(logic.nextOrder(['a','b'],[window('b'),window('c')],true)),['b']);
+assert.deepEqual(plain(logic.nextOrder(['a'],[window('c')],true)),[]);
+assert.deepEqual(plain(logic.append(['a','b'],'a')),['a','b']);
+assert.deepEqual(plain(logic.append(['a'],'b')),['a','b']);
+assert(logic.contains({x:-1920,y:0,width:1920,height:1080},{x:-500,y:100}));
+assert(!logic.contains({x:0,y:0,width:100,height:100},{x:100,y:50}));
+assert(logic.intersects({x:-100,y:0,width:200,height:100},{x:0,y:0,width:1920,height:1080}));
+console.log('KDE logic tests passed');

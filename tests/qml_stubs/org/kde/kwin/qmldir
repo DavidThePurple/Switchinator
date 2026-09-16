@@ -1,0 +1,6 @@
+module org.kde.kwin
+SceneEffect 1.0 SceneEffect.qml
+ShortcutHandler 1.0 ShortcutHandler.qml
+WindowThumbnail 1.0 WindowThumbnail.qml
+singleton Workspace 1.0 Workspace.qml
+singleton SceneView 1.0 SceneView.qml

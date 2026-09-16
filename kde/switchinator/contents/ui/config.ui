@@ -1,0 +1,248 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ui version="4.0">
+  <class>SwitchinatorConfig</class>
+  <widget class="QWidget" name="SwitchinatorConfig">
+    <layout class="QFormLayout" name="formLayout">
+      <item row="0" column="0">
+        <widget class="QLabel" name="labelUseTheme">
+          <property name="text">
+            <string>Use desktop theme colors</string>
+          </property>
+        </widget>
+      </item>
+      <item row="0" column="1">
+        <widget class="QCheckBox" name="kcfg_UseTheme" />
+      </item>
+      <item row="1" column="0">
+        <widget class="QLabel" name="labelCustomAccent">
+          <property name="text">
+            <string>Override theme accent</string>
+          </property>
+        </widget>
+      </item>
+      <item row="1" column="1">
+        <widget class="QCheckBox" name="kcfg_CustomAccent" />
+      </item>
+      <item row="2" column="0">
+        <widget class="QLabel" name="labelPrimaryColor">
+          <property name="text">
+            <string>Primary / row background</string>
+          </property>
+        </widget>
+      </item>
+      <item row="2" column="1">
+        <widget class="KColorButton" name="kcfg_PrimaryColor" />
+      </item>
+      <item row="3" column="0">
+        <widget class="QLabel" name="labelSecondaryColor">
+          <property name="text">
+            <string>Secondary / cards</string>
+          </property>
+        </widget>
+      </item>
+      <item row="3" column="1">
+        <widget class="KColorButton" name="kcfg_SecondaryColor" />
+      </item>
+      <item row="4" column="0">
+        <widget class="QLabel" name="labelAccentColor">
+          <property name="text">
+            <string>Accent</string>
+          </property>
+        </widget>
+      </item>
+      <item row="4" column="1">
+        <widget class="KColorButton" name="kcfg_AccentColor" />
+      </item>
+      <item row="5" column="0">
+        <widget class="QLabel" name="labelTextColor">
+          <property name="text">
+            <string>Text</string>
+          </property>
+        </widget>
+      </item>
+      <item row="5" column="1">
+        <widget class="KColorButton" name="kcfg_TextColor" />
+      </item>
+      <item row="6" column="0">
+        <widget class="QLabel" name="labelPreviewSize">
+          <property name="text">
+            <string>Preview size (%)</string>
+          </property>
+        </widget>
+      </item>
+      <item row="6" column="1">
+        <widget class="QSpinBox" name="kcfg_PreviewSize">
+          <property name="minimum">
+            <number>60</number>
+          </property>
+          <property name="maximum">
+            <number>200</number>
+          </property>
+        </widget>
+      </item>
+      <item row="7" column="0">
+        <widget class="QLabel" name="labelSelectedScale">
+          <property name="text">
+            <string>Selected preview enlargement</string>
+          </property>
+        </widget>
+      </item>
+      <item row="7" column="1">
+        <widget class="QDoubleSpinBox" name="kcfg_SelectedScale">
+          <property name="minimum">
+            <double>1</double>
+          </property>
+          <property name="maximum">
+            <double>3.5</double>
+          </property>
+          <property name="singleStep">
+            <double>0.05</double>
+          </property>
+        </widget>
+      </item>
+      <item row="8" column="0">
+        <widget class="QLabel" name="labelAnimations">
+          <property name="text">
+            <string>Enable animations</string>
+          </property>
+        </widget>
+      </item>
+      <item row="8" column="1">
+        <widget class="QCheckBox" name="kcfg_Animations" />
+      </item>
+      <item row="9" column="0">
+        <widget class="QLabel" name="labelSelectedStyle">
+          <property name="text">
+            <string>Selected style</string>
+          </property>
+        </widget>
+      </item>
+      <item row="9" column="1">
+        <widget class="QComboBox" name="kcfg_SelectedStyle">
+          <item>
+            <property name="text">
+              <string>None</string>
+            </property>
+          </item>
+          <item>
+            <property name="text">
+              <string>Tilt and rocking</string>
+            </property>
+          </item>
+          <item>
+            <property name="text">
+              <string>Gentle sway</string>
+            </property>
+          </item>
+          <item>
+            <property name="text">
+              <string>Float</string>
+            </property>
+          </item>
+          <item>
+            <property name="text">
+              <string>Pulse</string>
+            </property>
+          </item>
+        </widget>
+      </item>
+      <item row="10" column="0">
+        <widget class="QLabel" name="labelStyleStrength">
+          <property name="text">
+            <string>Effect strength</string>
+          </property>
+        </widget>
+      </item>
+      <item row="10" column="1">
+        <widget class="QSpinBox" name="kcfg_StyleStrength">
+          <property name="minimum">
+            <number>1</number>
+          </property>
+          <property name="maximum">
+            <number>15</number>
+          </property>
+        </widget>
+      </item>
+      <item row="11" column="0">
+        <widget class="QLabel" name="labelShowBackground">
+          <property name="text">
+            <string>Show row background</string>
+          </property>
+        </widget>
+      </item>
+      <item row="11" column="1">
+        <widget class="QCheckBox" name="kcfg_ShowBackground" />
+      </item>
+      <item row="12" column="0">
+        <widget class="QLabel" name="labelFinishMs">
+          <property name="text">
+            <string>Return animation (ms)</string>
+          </property>
+        </widget>
+      </item>
+      <item row="12" column="1">
+        <widget class="QSpinBox" name="kcfg_FinishMs">
+          <property name="minimum">
+            <number>50</number>
+          </property>
+          <property name="maximum">
+            <number>1200</number>
+          </property>
+        </widget>
+      </item>
+      <item row="13" column="0">
+        <widget class="QLabel" name="labelAutoRotate">
+          <property name="text">
+            <string>Automatically rotate windows</string>
+          </property>
+        </widget>
+      </item>
+      <item row="13" column="1">
+        <widget class="QCheckBox" name="kcfg_AutoRotate" />
+      </item>
+      <item row="14" column="0">
+        <widget class="QLabel" name="labelRotationDelay">
+          <property name="text">
+            <string>Delay between switches (seconds)</string>
+          </property>
+        </widget>
+      </item>
+      <item row="14" column="1">
+        <widget class="QSpinBox" name="kcfg_RotationDelay">
+          <property name="minimum">
+            <number>1</number>
+          </property>
+          <property name="maximum">
+            <number>300</number>
+          </property>
+        </widget>
+      </item>
+      <item row="15" column="0">
+        <widget class="QLabel" name="labelOpenMs">
+          <property name="text">
+            <string>Appearance duration (ms)</string>
+          </property>
+        </widget>
+      </item>
+      <item row="15" column="1">
+        <widget class="QSpinBox" name="kcfg_OpenMs">
+          <property name="minimum">
+            <number>50</number>
+          </property>
+          <property name="maximum">
+            <number>1000</number>
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+  <customwidgets>
+    <customwidget>
+      <class>KColorButton</class>
+      <extends>QPushButton</extends>
+      <header>kcolorbutton.h</header>
+    </customwidget>
+  </customwidgets>
+  <resources />
+  <connections />
+</ui>

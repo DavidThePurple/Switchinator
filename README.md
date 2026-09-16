@@ -1,8 +1,18 @@
 # Switchinator
 
-An animated Alt+Tab replacement for Cinnamon on X11. A row of window preview cards opens near your cursor and includes windows from every display. Hold Alt and press Tab to cycle; release Alt to activate the selected window on its original monitor. Shift+Alt+Tab cycles backward; Escape cancels.
+An animated Alt+Tab replacement for Cinnamon on X11, with a separate experimental KDE/SteamOS Desktop Mode backend. A row of window preview cards opens near your cursor and includes windows from every display. Hold Alt and press Tab to cycle; release Alt to activate the selected window on its original monitor. Shift+Alt+Tab cycles backward; Escape cancels.
 
 The installed extension currently appears as **Card Switcher**, with UUID `card-switcher@everlasting.media`.
+
+## Desktop support
+
+| Desktop | Backend | Status |
+| --- | --- | --- |
+| Cinnamon 6.6 / X11 | Existing Python/Qt extension | Current version; unchanged by the KDE addition |
+| KDE Plasma / KWin 6.4–6.x, Wayland or X11 | Native QML effect | Experimental; real-device verification pending |
+| SteamOS Gaming Mode | — | Unsupported |
+
+Run `./install.sh` to detect the desktop, or use `--backend cinnamon` / `--backend kde`. The original `./install-extension.sh` remains the Cinnamon installer. KDE packaging does not change Cinnamon files or configuration. See [KDE installation and verification](docs/KDE.md).
 
 ## Features
 
@@ -54,7 +64,7 @@ The Cinnamon extension manages configuration, theme integration, system-window t
 
 ## Current limitations
 
-This is an early version. Wayland is unsupported. Minimized windows may not have a preview. System-window snapshots are supplied by Cinnamon; other windows use XComposite. Multi-monitor behavior and long-term NVIDIA stability need broader testing.
+This is an early version. The Cinnamon backend does not support Wayland. The experimental KDE backend targets Wayland and X11 but has not yet been verified on SteamOS. Minimized windows may not have a preview. System-window snapshots are supplied by Cinnamon; other windows use XComposite. Multi-monitor behavior and long-term NVIDIA stability need broader testing.
 
 ## License
 
