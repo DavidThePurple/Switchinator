@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+*.zip
+.venv/
+original-bindings.json
+*.jsonl

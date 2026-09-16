@@ -1,0 +1,10 @@
+{
+  "uuid": "card-switcher@everlasting.media",
+  "name": "Card Switcher",
+  "description": "Animated preview cards near your cursor, across all displays.",
+  "version": 1,
+  "cinnamon-version": [
+    "6.6"
+  ],
+  "author": "David"
+}

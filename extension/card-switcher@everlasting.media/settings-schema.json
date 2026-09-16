@@ -1,0 +1,105 @@
+{
+  "appearance": {
+    "type": "header",
+    "description": "Appearance"
+  },
+  "use-theme": {
+    "type": "switch",
+    "default": true,
+    "description": "Use current Cinnamon theme colors"
+  },
+  "primary-color": {
+    "type": "colorchooser",
+    "default": "#0c111a",
+    "description": "Primary color (row background)"
+  },
+  "secondary-color": {
+    "type": "colorchooser",
+    "default": "#202735",
+    "description": "Secondary color (preview cards)"
+  },
+  "accent-color": {
+    "type": "colorchooser",
+    "default": "#79b8ff",
+    "description": "Accent color (selection outline)"
+  },
+  "custom-accent": {
+    "type": "switch",
+    "default": false,
+    "description": "Use custom accent even with theme colors"
+  },
+  "custom-text": {
+    "type": "colorchooser",
+    "default": "#edf3ff",
+    "description": "Text color (when theme colors are off)"
+  },
+  "animation": {
+    "type": "header",
+    "description": "Animation"
+  },
+  "open-ms": {
+    "type": "spinbutton",
+    "default": 240,
+    "min": 50,
+    "max": 1000,
+    "step": 10,
+    "units": "ms",
+    "description": "Row appearance duration"
+  },
+  "finish-ms": {
+    "type": "spinbutton",
+    "default": 360,
+    "min": 50,
+    "max": 1200,
+    "step": 10,
+    "units": "ms",
+    "description": "Return to original monitor duration"
+  },
+  "selected-scale": {
+    "type": "scale",
+    "default": 1.16,
+    "min": 1.0,
+    "max": 3.5,
+    "step": 0.05,
+    "description": "Selected preview enlargement (relative to base cards)"
+  },
+  "preview-size": {
+    "type": "scale",
+    "default": 100,
+    "min": 60,
+    "max": 200,
+    "step": 5,
+    "units": "%",
+    "description": "Preview size"
+  },
+  "animations-enabled": {
+    "type": "switch",
+    "default": true,
+    "description": "Enable animations"
+  },
+  "selected-style": {
+    "type": "combobox",
+    "default": "tilt",
+    "description": "Selected preview style",
+    "options": {
+      "None": "none",
+      "Tilt": "tilt",
+      "Gentle sway": "sway",
+      "Float": "float",
+      "Pulse": "pulse"
+    }
+  },
+  "style-strength": {
+    "type": "scale",
+    "default": 6,
+    "min": 1,
+    "max": 15,
+    "step": 1,
+    "description": "Effect strength"
+  },
+  "show-background": {
+    "type": "switch",
+    "default": false,
+    "description": "Show background behind preview cards"
+  }
+}
