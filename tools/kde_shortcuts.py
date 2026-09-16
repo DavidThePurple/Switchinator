@@ -18,11 +18,15 @@ def call(method,*args):
 
 def shortcut(action):return call('shortcut',json.dumps(action))
 
+def key_set(keys):
+    # KDE stores bindings in a QSet; list order is unspecified. Zero means unbound.
+    return {key for key in keys if key}
+
 def assign(action,keys):
     actual=call('setShortcut',json.dumps(action),json.dumps(keys),'6') # SetPresent | NoAutoloading
     call('setForeignShortcut',json.dumps(action),json.dumps(actual)) # notify the running QAction owner
-    if actual!=keys:raise RuntimeError('KDE rejected a requested shortcut for '+action[1])
-    if shortcut(action)!=keys:raise RuntimeError('Shortcut verification failed for '+action[1])
+    if key_set(actual)!=key_set(keys):raise RuntimeError('KDE rejected a requested shortcut for '+action[1])
+    if key_set(shortcut(action))!=key_set(keys):raise RuntimeError('Shortcut verification failed for '+action[1])
 
 def setup():
     actions=call('allActionsForComponent',json.dumps(['kwin','','','']))

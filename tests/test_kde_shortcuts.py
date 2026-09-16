@@ -16,8 +16,8 @@ class ShortcutTests(unittest.TestCase):
             if method=='allActionsForComponent':return actions
             if method=='action':return next((a for a in actions if int(args[0]) in state[tuple(a[:2])]),[])
             action=json.loads(args[0]);key=tuple(action[:2])
-            if method=='shortcut':return state[key].copy()
-            if method=='setShortcut':state[key]=json.loads(args[1]);return state[key].copy()
+            if method=='shortcut':return list(reversed(state[key])) or [0]
+            if method=='setShortcut':state[key]=json.loads(args[1]);return list(reversed(state[key])) or [0]
             if method=='setForeignShortcut':return None
             raise AssertionError(method)
         original={key:value.copy() for key,value in state.items()}
