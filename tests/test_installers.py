@@ -40,7 +40,7 @@ esac
             result=subprocess.run([str(ROOT/'install-kde.sh')],env=env,capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertEqual(marker.read_text(),'keep')
-            self.assertIn('--type KWin/Effect --install',log.read_text())
+            self.assertNotIn('kpackagetool6',log.read_text())
             self.assertNotIn('cinnamon',log.read_text())
             self.assertIn('loadEffect',log.read_text())
             self.assertIn('--key switchinatorEnabled true',log.read_text())

@@ -6,11 +6,30 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import tempfile
+
+
+def archive_legacy(data_home):
+    legacy = Path(data_home) / 'kwin/effects/switchinator'
+    if not legacy.exists() and not legacy.is_symlink():
+        return
+    metadata = legacy / 'metadata.json'
+    if not metadata.exists() or json.loads(metadata.read_text())['KPlugin']['Id'] != 'switchinator':
+        raise RuntimeError('Refusing to move an unrelated legacy effect at ' + str(legacy))
+    backups = Path(data_home) / 'switchinator/backups'
+    backups.mkdir(parents=True, exist_ok=True)
+    archive = Path(tempfile.mkdtemp(prefix='legacy-', dir=backups)) / 'switchinator'
+    # Rename the installed directory/link itself. Never follow it to the repo,
+    # and never pass the source checkout to a package-manager uninstall job.
+    legacy.rename(archive)
+    print('Previous KDE package preserved at ' + str(archive), file=sys.stderr)
 
 
 def prepare(source, data_home):
     source = Path(source)
     target = Path(data_home) / 'kwin-wayland/effects/switchinator'
+    if target.is_symlink():
+        raise RuntimeError('Refusing to write through an effect-directory symlink at ' + str(target))
     metadata = target / 'metadata.json'
     if target.exists() and (not metadata.exists() or
             json.loads(metadata.read_text())['KPlugin']['Id'] != 'switchinator'):
@@ -30,6 +49,7 @@ def prepare(source, data_home):
     # under kwin/effects when migrating from installations before this loader.
     shutil.copy2(ui / 'main.qml', target / 'contents/ui/main.qml')
     shutil.copy2(ui / 'config.ui', target / 'contents/ui/config.ui')
+    archive_legacy(data_home)
     return revision
 
 

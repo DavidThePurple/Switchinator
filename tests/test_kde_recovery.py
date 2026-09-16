@@ -76,6 +76,40 @@ class RecoveryTests(unittest.TestCase):
             self.assertTrue((runtime / first / 'Runtime.qml').exists())
             self.assertTrue((runtime / second / 'Logic.js').exists())
 
+    def test_migration_preserves_legacy_files_and_repeated_install_succeeds(self):
+        prepare = module('prepare_kde_runtime')
+        import shutil
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            data = directory / 'data'
+            source = directory / 'checkout/kde/switchinator'
+            shutil.copytree(ROOT / 'kde/switchinator', source)
+            legacy = data / 'kwin/effects/switchinator'
+            shutil.copytree(source, legacy)
+            (legacy / 'old-file').write_text('preserve')
+            first = prepare.prepare(source, data)
+            self.assertFalse(legacy.exists())
+            backups = list((data / 'switchinator/backups').glob('legacy-*/switchinator'))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual((backups[0] / 'old-file').read_text(), 'preserve')
+            self.assertEqual(first, prepare.prepare(source, data))
+            self.assertTrue((source / 'contents/ui/main.qml').exists())
+
+    def test_migration_moves_legacy_symlink_without_touching_checkout(self):
+        prepare = module('prepare_kde_runtime')
+        import shutil
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            source = directory / 'checkout'
+            shutil.copytree(ROOT / 'kde/switchinator', source)
+            legacy = directory / 'data/kwin/effects/switchinator'
+            legacy.parent.mkdir(parents=True)
+            legacy.symlink_to(source, target_is_directory=True)
+            prepare.prepare(source, directory / 'data')
+            self.assertTrue((source / 'metadata.json').exists())
+            backup = next((directory / 'data/switchinator/backups').glob('legacy-*/switchinator'))
+            self.assertTrue(backup.is_symlink())
+
 
 if __name__ == '__main__':
     unittest.main()

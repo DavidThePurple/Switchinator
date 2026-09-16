@@ -12,7 +12,7 @@ From SteamOS **Desktop Mode**, inside the cloned repository:
 ./install.sh
 ```
 
-Alternatively select explicitly with `./install.sh --backend kde`. The installer checks the KWin version, installs or upgrades the package with `kpackagetool6`, loads it into the running KWin session, verifies that KWin lists it as loaded, and enables it for future desktop sessions. It verifies that the previous copy is unloaded during upgrades, refreshes KWin's configuration, and starts the external recovery service before assigning shortcuts. If loading fails, it reports installation as incomplete instead of claiming success. It backs up the conflicting KWin shortcuts and assigns Alt+Tab / Shift+Alt+Tab to Switchinator. Shortcut registration and assignment are verified before reporting success.
+Alternatively select explicitly with `./install.sh --backend kde`. The installer checks the KWin version, copies the package and versioned runtime directly into KWin's preferred user package directory, loads it into the running KWin session, verifies that KWin lists it as loaded, and enables it for future desktop sessions. It verifies that the previous copy is unloaded during upgrades, refreshes KWin's configuration, and starts the external recovery service before assigning shortcuts. If loading fails, it reports installation as incomplete instead of claiming success. It backs up the conflicting KWin shortcuts and assigns Alt+Tab / Shift+Alt+Tab to Switchinator. Shortcut registration and assignment are verified before reporting success.
 
 Once installation reports **installed and loaded**, use **Alt+Tab**; use **Shift+Alt+Tab** to cycle backward. Hold the modifier to keep the row open, and release it to select.
 
@@ -44,7 +44,7 @@ The row opens near the pointer on its display, includes eligible windows from ev
 
 The effect has a 60-second cancellation timer and a stalled-animation completion timeout. A separate **user service**, `switchinator-watchdog.service`, also checks KWin's native `activeEffects` property every two seconds. If the overlay remains active for 60 seconds, this service disables and unloads Switchinator, releasing its keyboard/mouse grabs, and restores the saved native shortcuts. It runs outside the QML engine and does not rely on card clicks, key events, or the effect's timers. Reinstall to enable Switchinator again after watchdog recovery. If KWin itself stops answering D-Bus, this service cannot force a safe recovery.
 
-Upgrades use a stable entry point at `~/.local/share/kwin-wayland/effects/switchinator/contents/ui/main.qml` and content-addressed runtime directories. This avoids KWin reusing cached QML and JavaScript after an update. The first migration uses KWin's preferred `kwin-wayland` package path to bypass the old cached entry point under `kwin/effects`. The installer prints the installed runtime revision; `diagnose-kde.sh` includes that revision, watchdog state, active effects, and the loaded-runtime log.
+Upgrades use a stable entry point at `~/.local/share/kwin-wayland/effects/switchinator/contents/ui/main.qml` and content-addressed runtime directories. This avoids KWin reusing cached QML and JavaScript after an update. The first migration uses KWin's preferred `kwin-wayland` package path to bypass the old cached entry point under `kwin/effects`. The obsolete installed directory is moved into `~/.local/share/switchinator/backups/legacy-*/switchinator`; the repository and saved settings remain intact. Installation does not depend on the package manager's `--show`, `--upgrade`, or `--remove` lookup, which can resolve the wrong package root during this migration. The installer prints the installed runtime revision; `diagnose-kde.sh` includes that revision, watchdog state, active effects, and the loaded-runtime log.
 
 This update problem is reported [by KWin effect developers](https://discuss.kde.org/t/proper-way-to-reload-a-kwin-effect/46880) and matches [Qt's component-cache behavior](https://doc.qt.io/qt-6/qqmlengine.html#clearComponentCache). The regression test keeps one Qt engine and entry URL across upgrades and verifies that changed imported code loads without clearing that engine's cache.
 
@@ -65,7 +65,7 @@ Run `./configure-kde.sh` and disable Switchinator first. Restore the saved nativ
 ```sh
 systemctl --user disable --now switchinator-watchdog.service
 python3 tools/kde_shortcuts.py --restore
-kpackagetool6 --type KWin/Effect --remove switchinator --packageroot "${XDG_DATA_HOME:-$HOME/.local/share}/kwin-wayland/effects"
+rm -r -- "${XDG_DATA_HOME:-$HOME/.local/share}/kwin-wayland/effects/switchinator"
 ```
 
 ## On-device verification checklist

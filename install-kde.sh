@@ -2,7 +2,6 @@
 set -euo pipefail
 root_dir="$(cd -- "$(dirname -- "$0")" && pwd)"
 [[ "${EUID}" -ne 0 ]] || { echo 'Run as your normal desktop user, not root.' >&2;exit 2; }
-command -v kpackagetool6 >/dev/null || { echo 'This backend requires Plasma 6 and kpackagetool6.' >&2;exit 2; }
 version_command=""
 for candidate in kwin_wayland kwin_x11; do
     if command -v "$candidate" >/dev/null;then version_command="$candidate";break;fi
@@ -17,20 +16,9 @@ command -v python3 >/dev/null && command -v gdbus >/dev/null && command -v syste
     echo 'KDE installation requires python3, gdbus and a user systemd session for input recovery.' >&2;exit 1;
 }
 package="$root_dir/kde/switchinator"
-package_root="${XDG_DATA_HOME:-$HOME/.local/share}/kwin-wayland/effects"
-if kpackagetool6 --type KWin/Effect --show switchinator --packageroot "$package_root" >/dev/null 2>&1;then
-    kpackagetool6 --type KWin/Effect --upgrade "$package" --packageroot "$package_root"
-else
-    kpackagetool6 --type KWin/Effect --install "$package" --packageroot "$package_root"
-fi
 # Start recovery outside the compositor before enabling the effect.
 python3 "$root_dir/tools/install_kde_watchdog.py"
 runtime_revision="$(python3 "$root_dir/tools/prepare_kde_runtime.py" "$package")"
-# Remove the obsolete fallback package so settings list a single effect.
-legacy_root="${XDG_DATA_HOME:-$HOME/.local/share}/kwin/effects"
-if [[ -f "$legacy_root/switchinator/metadata.json" ]];then
-    kpackagetool6 --type KWin/Effect --remove switchinator --packageroot "$legacy_root"
-fi
 # Load the package in this desktop session, then persist its enabled state.
 # Package installation alone does not activate a KWin effect.
 command -v kwriteconfig6 >/dev/null || { echo 'Package installed, but kwriteconfig6 is missing; activation was not completed.' >&2;exit 1; }
