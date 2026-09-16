@@ -13,11 +13,23 @@ if [[ "$version" =~ ([0-9]+)\.([0-9]+) ]];then
     major="${BASH_REMATCH[1]}";minor="${BASH_REMATCH[2]}"
     ((major==6 && minor>=4)) || { echo 'The experimental KDE backend requires KWin 6.4 or later in the 6.x series.' >&2;exit 2; }
 else echo 'Could not determine the KWin version.' >&2;exit 2;fi
+command -v python3 >/dev/null && command -v gdbus >/dev/null && command -v systemctl >/dev/null || {
+    echo 'KDE installation requires python3, gdbus and a user systemd session for input recovery.' >&2;exit 1;
+}
 package="$root_dir/kde/switchinator"
-if kpackagetool6 --type KWin/Effect --show switchinator >/dev/null 2>&1;then
-    kpackagetool6 --type KWin/Effect --upgrade "$package"
+package_root="${XDG_DATA_HOME:-$HOME/.local/share}/kwin-wayland/effects"
+if kpackagetool6 --type KWin/Effect --show switchinator --packageroot "$package_root" >/dev/null 2>&1;then
+    kpackagetool6 --type KWin/Effect --upgrade "$package" --packageroot "$package_root"
 else
-    kpackagetool6 --type KWin/Effect --install "$package"
+    kpackagetool6 --type KWin/Effect --install "$package" --packageroot "$package_root"
+fi
+# Start recovery outside the compositor before enabling the effect.
+python3 "$root_dir/tools/install_kde_watchdog.py"
+runtime_revision="$(python3 "$root_dir/tools/prepare_kde_runtime.py" "$package")"
+# Remove the obsolete fallback package so settings list a single effect.
+legacy_root="${XDG_DATA_HOME:-$HOME/.local/share}/kwin/effects"
+if [[ -f "$legacy_root/switchinator/metadata.json" ]];then
+    kpackagetool6 --type KWin/Effect --remove switchinator --packageroot "$legacy_root"
 fi
 # Load the package in this desktop session, then persist its enabled state.
 # Package installation alone does not activate a KWin effect.
@@ -33,8 +45,16 @@ is_loaded() { [[ "$1" == *"'switchinator'"* || "$1" == *'"switchinator"'* ]]; }
 if ! reply="$(loaded_effects 2>&1)";then
     echo "Package installed, but the running KWin desktop could not be reached: $reply" >&2;exit 1
 fi
+# Refresh KWin's in-memory KConfig before constructing the new runtime.
+# Disabling during the refresh prevents reconfigure from auto-loading a copy.
+kwriteconfig6 --file kwinrc --group Plugins --key switchinatorEnabled false
+kwriteconfig6 --file kwinrc --group Effect-switchinator --key RuntimeRevision "$runtime_revision"
+gdbus call --session --dest org.kde.KWin --object-path /KWin --method org.kde.KWin.reconfigure >/dev/null
+reply="$(loaded_effects)"
 if is_loaded "$reply";then
     effect_call unloadEffect >/dev/null
+    reply="$(loaded_effects)"
+    if is_loaded "$reply";then echo 'KWin did not unload the old effect; activation stopped.' >&2;exit 1;fi
 fi
 if ! reply="$(effect_call loadEffect 2>&1)";then
     echo "Package installed, but KWin could not load it: $reply" >&2;exit 1
@@ -48,11 +68,17 @@ fi
 command -v python3 >/dev/null && command -v gdbus >/dev/null || {
     echo 'Effect loaded, but automatic Alt+Tab setup requires python3 and gdbus.' >&2;exit 1;
 }
-python3 "$root_dir/tools/kde_shortcuts.py"
+if ! python3 "$root_dir/tools/kde_shortcuts.py";then
+    effect_call unloadEffect >/dev/null
+    exit 1
+fi
 kwriteconfig6 --file kwinrc --group Plugins --key switchinatorEnabled true
+printf 'Installed runtime: %s\n' "$runtime_revision"
 cat <<'MESSAGE'
 Switchinator installed and loaded. Enabled for future desktop sessions.
 Try Alt+Tab (hold Alt, press Tab; release Alt to select).
+A separate watchdog unloads an overlay stuck open for 60 seconds and
+restores your original shortcuts. It does not depend on the overlay timer.
 Open settings directly: ./configure-kde.sh
 Original shortcut backup: ~/.config/switchinator/kde-shortcuts.json
 If the overlay does not open, run: ./diagnose-kde.sh

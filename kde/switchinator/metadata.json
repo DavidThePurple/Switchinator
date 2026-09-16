@@ -12,7 +12,7 @@
     "Id": "switchinator",
     "License": "MIT",
     "Name": "Switchinator",
-    "Version": "0.2.0",
+    "Version": "0.2.1",
     "Website": "https://github.com/DavidThePurple/Switchinator"
   },
   "X-KDE-Ordering": 60,

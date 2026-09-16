@@ -10,15 +10,47 @@ from PyQt6.QtQuick import QQuickWindow
 from PyQt6.QtTest import QTest
 from PyQt6 import sip
 import unittest
+import importlib.util
+import shutil
+import tempfile
 
 class KdeQmlTests(unittest.TestCase):
+    def test_reload_uses_new_runtime_and_imports_in_same_engine(self):
+        root=Path(__file__).resolve().parents[1]
+        app=QGuiApplication.instance() or QGuiApplication([])
+        engine=QQmlEngine();engine.addImportPath(str(root/'tests/qml_stubs'))
+        spec=importlib.util.spec_from_file_location('prepare',root/'tools/prepare_kde_runtime.py')
+        prepare=importlib.util.module_from_spec(spec);spec.loader.exec_module(prepare)
+        with tempfile.TemporaryDirectory() as directory:
+            directory=Path(directory);source=directory/'package'
+            shutil.copytree(root/'kde/switchinator',source)
+            runtime=source/'contents/ui/Runtime.qml';logic=source/'contents/ui/Logic.js'
+            runtime.write_text(runtime.read_text().replace('    id: effect','    id: effect\n    property string importMarker: Logic.revisionMarker()',1))
+            original_logic=logic.read_text()
+            url=QUrl.fromLocalFile(str(directory/'data/kwin-wayland/effects/switchinator/contents/ui/main.qml'))
+            # Keep the same engine and entry URL throughout: that is KWin's
+            # upgrade lifecycle, and deliberately do not clearComponentCache.
+            for marker in ('first','second'):
+                logic.write_text(original_logic+'\nfunction revisionMarker() {return "'+marker+'";}\n')
+                revision=prepare.prepare(source,directory/'data')
+                component=QQmlComponent(engine,url)
+                default=QQmlComponent(engine,QUrl.fromLocalFile(str(root/'tests/qml_stubs/org/kde/kwin/SceneEffect.qml'))).create()
+                config=default.property('configuration').toVariant();sip.delete(default)
+                config['RuntimeRevision']=revision
+                native=component.createWithInitialProperties({'configuration':config})
+                self.assertIsNotNone(native,'\n'.join(error.toString() for error in component.errors()))
+                self.assertEqual(native.property('loadedRevision'),revision)
+                self.assertEqual(native.property('runtime').property('importMarker'),marker)
+                sip.delete(native);app.processEvents()
+
     def test_effect_and_cards_load(self):
         root=Path(__file__).resolve().parents[1]
         app=QGuiApplication.instance() or QGuiApplication([])
         engine=QQmlEngine();warnings=[];engine.warnings.connect(lambda errors:warnings.extend(error.toString() for error in errors));engine.addImportPath(str(root/'tests/qml_stubs'))
         component=QQmlComponent(engine,QUrl.fromLocalFile(str(root/'kde/switchinator/contents/ui/main.qml')))
         self.assertFalse(component.isError(),'\n'.join(error.toString() for error in component.errors()))
-        effect=component.create()
+        native=component.create()
+        effect=native.property("runtime")
         self.assertIsNotNone(effect,'\n'.join(error.toString() for error in component.errors()))
         QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
         self.assertTrue(effect.property('visible'))
@@ -31,10 +63,10 @@ class KdeQmlTests(unittest.TestCase):
         def pump(milliseconds): QTest.qWait(milliseconds)
         pump(600)
         self.assertTrue(scene.hasActiveFocus())
-        self.assertGreater(effect.property("viewActivationCount"),0)
+        self.assertGreater(native.property("viewActivationCount"),0)
         self.assertEqual(len(effect.property('snapshots').toVariant()),2)
         configuration=effect.property('configuration').toVariant();configuration.update(AutoRotate=True,Animations=False,RotationDelay=1)
-        effect.setProperty('configuration',configuration)
+        native.setProperty('configuration',configuration)
         QMetaObject.invokeMethod(effect,'choose',Q_ARG('QVariant','first'))
         QMetaObject.invokeMethod(effect,'choose',Q_ARG('QVariant','second'))
         QMetaObject.invokeMethod(effect,'choose',Q_ARG('QVariant','first'))
@@ -51,7 +83,7 @@ class KdeQmlTests(unittest.TestCase):
         pump(1150)
         self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
         configuration.update(AutoRotate=False)
-        effect.setProperty('configuration',configuration)
+        native.setProperty('configuration',configuration)
         # Cancel used to restart rotation even with the setting switched off.
         QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
         QMetaObject.invokeMethod(effect,'cancel')
@@ -63,7 +95,7 @@ class KdeQmlTests(unittest.TestCase):
         QTest.keyClick(window,Qt.Key.Key_Escape)
         self.assertFalse(effect.property('visible'))
         configuration.update(Animations=True)
-        effect.setProperty('configuration',configuration)
+        native.setProperty('configuration',configuration)
         QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
         QTest.keyRelease(window,Qt.Key.Key_Alt)
         self.assertTrue(effect.property('returning'))
@@ -118,6 +150,6 @@ class KdeQmlTests(unittest.TestCase):
         self.assertEqual(workspace.property('activeWindow'),workspace.property('second'))
         warnings=[warning for warning in warnings if 'safety timeout' not in warning]
         self.assertEqual(warnings,[],"\n".join(warnings))
-        window.close();scene.setParentItem(None);sip.delete(scene);sip.delete(window);sip.delete(effect);sip.delete(probe);app.processEvents()
+        window.close();scene.setParentItem(None);sip.delete(scene);sip.delete(window);sip.delete(native);sip.delete(probe);app.processEvents()
 
 if __name__=='__main__':unittest.main()

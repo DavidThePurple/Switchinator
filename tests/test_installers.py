@@ -46,13 +46,16 @@ esac
             self.assertIn('--key switchinatorEnabled true',log.read_text())
             self.assertIn('installed and loaded',result.stdout)
             self.assertIn('kde_shortcuts.py',log.read_text())
+            self.assertLess(log.read_text().index('install_kde_watchdog.py'),log.read_text().index('org.kde.kwin.Effects.loadEffect'))
+            self.assertLess(log.read_text().index('--key RuntimeRevision'),log.read_text().index('org.kde.KWin.reconfigure'))
+            self.assertIn('prepare_kde_runtime.py',log.read_text())
             # A load failure must not print success or enable a broken effect.
             log.unlink();env['SWITCHINATOR_TEST_FAIL']='1'
             result=subprocess.run([str(ROOT/'install-kde.sh')],env=env,capture_output=True,text=True)
             self.assertNotEqual(result.returncode,0)
             self.assertIn('did not load',result.stderr)
             self.assertNotIn('installed and loaded',result.stdout)
-            self.assertNotIn('switchinatorEnabled',log.read_text())
+            self.assertNotIn('--key switchinatorEnabled true',log.read_text())
             # Unsupported KWin fails before the package manager can mutate anything.
             (commands/'kwin_wayland').write_text('#!/bin/sh\necho "kwin 6.2.5"\n');log.unlink()
             result=subprocess.run([str(ROOT/'install-kde.sh')],env=env,capture_output=True,text=True)
