@@ -20,7 +20,7 @@ Run `./install.sh` to detect the desktop, or use `--backend cinnamon` / `--backe
 - Staggered background prefetch of one system-window preview every eight seconds.
 - Separate controls for card size and selected-card enlargement.
 - Tilt with animated entry and rocking, sway, float, pulse, or no effect.
-- Flat-row or optional 3D-carousel layout, with animations and background independently optional.
+- Flat-row or optional 3D-carousel layout, with optional animations and a flat-row background toggle.
 - Current-theme colors or custom primary, secondary, accent, and text colors.
 
 The cards animate cached images; animation does not continuously capture the source windows.

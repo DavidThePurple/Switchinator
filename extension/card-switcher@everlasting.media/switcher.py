@@ -396,13 +396,9 @@ class Switcher(QtWidgets.QWidget):
         if self.phase=='row':
             fade=1-(1-self.progress)**3
             panel=QtCore.QRectF(self.cx-self.rowwidth/2,self.cy-self.panelheight/2,self.rowwidth,self.panelheight)
-            if self.config.get('show_background',False):
+            if self.config.get('show_background',False) and self.config.get('window_layout','flat')!='carousel':
                 p.save();p.setOpacity(fade);p.setBrush(self.color('primary','#0c111a'))
-                if self.config.get('window_layout','flat')=='carousel':
-                    radius=min(self.host.width()*.35,244*self.card_size*(1.45+min(len(self.items),8)*.12))
-                    base=QtCore.QRectF(self.cx-radius-244*self.card_size*.4,self.cy+186*self.card_size*.43,radius*2+244*self.card_size*.8,34)
-                    pen=QtGui.QPen(self.color('accent','#79b8ff'));pen.setWidthF(2);p.setPen(pen);p.drawRoundedRect(base,17,17)
-                else:p.setPen(QtCore.Qt.NoPen);p.drawRoundedRect(panel,22,22)
+                p.setPen(QtCore.Qt.NoPen);p.drawRoundedRect(panel,22,22)
                 p.restore()
             p.save();p.setClipRect(panel.adjusted(10,8,-10,-8))
             order=range(len(self.items))

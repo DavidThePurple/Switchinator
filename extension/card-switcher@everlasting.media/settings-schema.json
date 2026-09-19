@@ -109,7 +109,7 @@
   "show-background": {
     "type": "switch",
     "default": false,
-    "description": "Show background behind the window layout"
+    "description": "Show background behind the flat row"
   },
   "automation": {
     "type": "header",

@@ -281,13 +281,6 @@ QtObject {
             x: scene.centerX-scene.rowWidth/2;y: scene.centerY-scene.baseHeight/2-18
             width: scene.rowWidth;height: scene.baseHeight+36;radius: 22;color: effect.primary
         }
-        Rectangle {
-            visible: scene.isHost && !effect.returning && effect.configuration.ShowBackground && scene.carousel
-            x: scene.centerX-scene.carouselRadius-scene.baseWidth*.4
-            y: scene.centerY+scene.baseHeight*.43
-            width: scene.carouselRadius*2+scene.baseWidth*.8;height: 34;radius: 17
-            color: effect.primary;border.width: 2;border.color: effect.accent;opacity: .88
-        }
         Repeater {
             id: cards
             model: effect.visible && scene.isHost && !effect.returning ? effect.windows : []

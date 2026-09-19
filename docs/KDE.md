@@ -35,7 +35,7 @@ The installer performs no driver changes and does not alter Cinnamon files, sett
 Run `./configure-kde.sh`, search for Switchinator, and use its configure button for:
 
 - Theme-derived or custom primary, secondary, accent, and text colors.
-- Flat-row or 3D-carousel layout, optional background, 60–200% preview size, and independent selected-card enlargement.
+- Flat-row or 3D-carousel layout, optional flat-row background, 60–200% preview size, and independent selected-card enlargement.
 - None, tilt with animated entry and rocking, sway, float, or pulse.
 - Animation toggle, appearance duration, and return-to-monitor duration.
 - Automatic rotation toggle and delay (1–300 seconds).
