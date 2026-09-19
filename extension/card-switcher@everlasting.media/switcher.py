@@ -407,7 +407,7 @@ class Switcher(QtWidgets.QWidget):
                 rect=self.cardrect(i)
                 if i!=self.index and rect.intersects(panel):
                     depth=carousel_pose(i,self.scroll,len(self.items))[1] if self.config.get('window_layout','flat')=='carousel' else .6
-                    self.card(p,self.items[i],rect,False,fade*(.55+.45*depth))
+                    self.card(p,self.items[i],rect,False,fade*(.18+.82*depth**1.7))
             p.restore()
             p.save();p.setClipRect(QtCore.QRectF(self.host.translated(-self.origin)))
             self.selected_card(p,fade);p.restore()

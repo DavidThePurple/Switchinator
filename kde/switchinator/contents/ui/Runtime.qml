@@ -295,7 +295,7 @@ QtObject {
                 readonly property real carouselAngle: scene.carousel ? carouselOffset*scene.carouselStep : 0
                 readonly property real carouselDepth: scene.carousel ? Math.max(0,Math.cos(carouselAngle*Math.PI/180)) : 1
                 readonly property real depthScale: scene.carousel ? .66+.34*carouselDepth : 1
-                property real depthOpacity: scene.carousel ? .55+.45*carouselDepth : 1
+                property real depthOpacity: scene.carousel ? .18+.82*Math.pow(carouselDepth,1.7) : 1
                 property real sizeScale: (selected ? scene.enlargement : 1)*depthScale
                 property real yaw: scene.carousel ? -carouselAngle*.82 : 0
                 property real angle: 0
