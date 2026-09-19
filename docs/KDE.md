@@ -35,14 +35,14 @@ The installer performs no driver changes and does not alter Cinnamon files, sett
 Run `./configure-kde.sh`, search for Switchinator, and use its configure button for:
 
 - Theme-derived or custom primary, secondary, accent, and text colors.
-- Optional row background, 60–200% preview size, independent selected-card enlargement.
+- Flat-row or 3D-carousel layout, optional background, 60–200% preview size, and independent selected-card enlargement.
 - None, tilt with animated entry and rocking, sway, float, or pulse.
 - Animation toggle, appearance duration, and return-to-monitor duration.
 - Automatic rotation toggle and delay (1–300 seconds).
 
 A small native modifier bridge tracks Alt release before KWin finishes creating its asynchronous view. Very quick Alt+Tab taps select directly when the view is not ready; they do not leave an overlay waiting for a release event that has already happened. The bundled x86-64 module requires Qt 6.4+ and glibc 2.34+; [source and rebuild instructions](../native/README.md) are included.
 
-The row opens near the pointer on its display, includes eligible windows from every display, and keeps the selected window on its original monitor. Escape cancels selection. The top-right **Select** and **Close** buttons work independently of keyboard focus. With automatic rotation off, clicking a preview selects it and closes the row. With rotation on, clicks continue to record the chosen sequence.
+The selected layout opens near the pointer on its display, includes eligible windows from every display, and keeps the selected window on its original monitor. Escape cancels selection. The top-right **Select** and **Close** buttons work independently of keyboard focus. With automatic rotation off, clicking a preview selects it and closes the row. With rotation on, clicks continue to record the chosen sequence.
 
 The effect has a 60-second cancellation timer and a stalled-animation completion timeout. A separate **user service**, `switchinator-watchdog.service`, also checks KWin's native `activeEffects` property every two seconds. If the overlay remains active for 60 seconds, this service disables and unloads Switchinator, releasing its keyboard/mouse grabs, and restores the saved native shortcuts. It runs outside the QML engine and does not rely on card clicks, key events, or the effect's timers. Reinstall to enable Switchinator again after watchdog recovery. If KWin itself stops answering D-Bus, this service cannot force a safe recovery.
 
@@ -75,7 +75,7 @@ rm -r -- "${XDG_DATA_HOME:-$HOME/.local/share}/kwin-wayland/effects/switchinator
 1. Install, confirm the loaded verification succeeds, and test Alt+Tab and Shift+Alt+Tab; verify the original shortcut backup exists.
 2. Test one display, docked displays, mixed scaling, and negative monitor coordinates.
 3. Test native Wayland and XWayland apps, obscured windows, and minimized windows.
-4. Check selection growth, in-tilt, rocking, all optional styles, and disabled animations.
+4. Check both flat-row and 3D-carousel layouts, selection growth, in-tilt, rocking, all optional styles, and disabled animations.
 5. Release the modifier to windows on each monitor; confirm Escape never activates a window.
 6. Enable rotation at a comfortable delay, test the default order, then click a custom sequence.
 7. Close one chosen window and then all chosen windows; confirm no unrelated windows activate.

@@ -31,6 +31,9 @@
       <min>1</min>
       <max>3.5</max>
     </entry>
+    <entry name="LayoutMode" type="Int">
+      <default>0</default>
+    </entry>
     <entry name="Animations" type="Bool">
       <default>true</default>
     </entry>

@@ -73,11 +73,37 @@ class KdeQmlTests(unittest.TestCase):
         # Reproduce KWin's focus clearing after installing the delegate.
         window.contentItem().setFocus(False)
         def pump(milliseconds): QTest.qWait(milliseconds)
+        def visual_item(item,name):
+            if item.objectName()==name:return item
+            for child in item.childItems():
+                found=visual_item(child,name)
+                if found is not None:return found
+            return None
         pump(600)
         self.assertTrue(scene.hasActiveFocus())
         self.assertGreater(native.property("viewActivationCount"),0)
         self.assertEqual(len(effect.property('snapshots').toVariant()),2)
         configuration=effect.property('configuration').toVariant();configuration.update(AutoRotate=True,Animations=False,RotationDelay=1)
+        # The optional carousel keeps the selected card front-facing while
+        # neighboring cards curve away in real 3D and remain clickable.
+        configuration.update(LayoutMode=1)
+        native.setProperty('configuration',configuration);pump(40)
+        self.assertTrue(scene.property('carousel'))
+        first_card=visual_item(scene,'PreviewCard-0')
+        second_card=visual_item(scene,'PreviewCard-1')
+        self.assertIsNotNone(first_card);self.assertIsNotNone(second_card)
+        selected_card=first_card if first_card.property('selected') else second_card
+        side_card=second_card if selected_card is first_card else first_card
+        self.assertAlmostEqual(selected_card.property('yaw'),0)
+        self.assertNotEqual(side_card.property('yaw'),0)
+        self.assertGreater(selected_card.property('z'),side_card.property('z'))
+        self.assertLess(side_card.property('depthOpacity'),1)
+        previous_selected=effect.property('selected')
+        QMetaObject.invokeMethod(effect,'cycle',Q_ARG('QVariant',False));pump(40)
+        self.assertNotEqual(effect.property('selected'),previous_selected)
+        selected_card=first_card if first_card.property('selected') else second_card
+        self.assertAlmostEqual(selected_card.property('yaw'),0)
+        configuration.update(LayoutMode=0)
         native.setProperty('configuration',configuration)
         QMetaObject.invokeMethod(effect,'choose',Q_ARG('QVariant','first'))
         QMetaObject.invokeMethod(effect,'choose',Q_ARG('QVariant','second'))
@@ -133,12 +159,6 @@ class KdeQmlTests(unittest.TestCase):
         # Plain card clicks must activate directly when rotation is disabled.
         QMetaObject.invokeMethod(effect,'begin',Q_ARG('QVariant',False))
         pump(40);window.contentItem().setFocus(False)
-        def visual_item(item,name):
-            if item.objectName()==name:return item
-            for child in item.childItems():
-                found=visual_item(child,name)
-                if found is not None:return found
-            return None
         card=visual_item(scene,'PreviewMouse-'+str(effect.property('selected')))
         self.assertIsNotNone(card)
         point=card.mapToScene(QPointF(card.width()/2,card.height()/2)).toPoint()

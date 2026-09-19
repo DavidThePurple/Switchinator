@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,6 +17,14 @@ def module(name):
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_carousel_setting_is_declared_and_exposed(self):
+        config = ET.parse(ROOT / 'kde/switchinator/contents/config/main.xml').getroot()
+        entries = {entry.attrib['name']: entry for entry in config.iter() if entry.tag.endswith('entry')}
+        self.assertEqual(entries['LayoutMode'].find('{http://www.kde.org/standards/kcfg/1.0}default').text, '0')
+        ui = (ROOT / 'kde/switchinator/contents/ui/config.ui').read_text()
+        self.assertIn('name="kcfg_LayoutMode"', ui)
+        self.assertIn('<string>3D carousel</string>', ui)
+
     def test_service_is_independent_of_checkout_and_preserves_config_location(self):
         installer = module('install_kde_watchdog')
         with tempfile.TemporaryDirectory() as directory:

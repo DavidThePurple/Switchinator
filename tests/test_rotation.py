@@ -2,13 +2,26 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
-from PyQt5 import QtCore
+from PyQt5 import QtCore,QtGui
 
 path=Path(__file__).resolve().parents[1]/'extension/card-switcher@everlasting.media/switcher.py'
 spec=importlib.util.spec_from_file_location('switcher',path)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
 class RotationTests(unittest.TestCase):
+    def test_carousel_wraps_and_projects_side_cards(self):
+        self.assertEqual(module.circular_delta(0,4,5),1)
+        self.assertEqual(module.circular_delta(4,0,5),-1)
+        center_angle,center_depth=module.carousel_pose(2,2,5)
+        side_angle,side_depth=module.carousel_pose(4,2,5)
+        self.assertEqual(center_angle,0);self.assertEqual(center_depth,1)
+        self.assertGreater(side_angle,0);self.assertLess(side_depth,1)
+        widget=SimpleNamespace(config={'window_layout':'carousel'},phase='row',scroll=2,items=[1,2,3,4,5])
+        rect=QtCore.QRectF(100,100,244,186)
+        transform=module.Switcher.cardtransform(widget,4,rect)
+        mapped=transform.map(QtGui.QPolygonF(rect)).boundingRect()
+        self.assertLess(mapped.width(),rect.width())
+
     def engine(self):
         engine=module.AutoRotation();engine.configure(True,5,0);return engine
     def test_default_order_delay_and_wrap(self):

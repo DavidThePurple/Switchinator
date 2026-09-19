@@ -72,6 +72,15 @@
     "units": "%",
     "description": "Preview size"
   },
+  "window-layout": {
+    "type": "combobox",
+    "default": "flat",
+    "description": "Window layout",
+    "options": {
+      "Flat row": "flat",
+      "3D carousel": "carousel"
+    }
+  },
   "animations-enabled": {
     "type": "switch",
     "default": true,
@@ -100,7 +109,7 @@
   "show-background": {
     "type": "switch",
     "default": false,
-    "description": "Show background behind preview cards"
+    "description": "Show background behind the window layout"
   },
   "automation": {
     "type": "header",

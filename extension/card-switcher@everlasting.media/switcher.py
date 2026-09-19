@@ -5,6 +5,20 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from Xlib import X, XK, display, protocol
 from Xlib.ext import composite
 
+def circular_delta(value,center,count):
+    if count<2:return 0.0
+    delta=value-center
+    while delta>count/2:delta-=count
+    while delta<-count/2:delta+=count
+    return delta
+
+def carousel_pose(index,scroll,count):
+    offset=circular_delta(index,scroll,count)
+    step=min(48,82/max(1,count//2))
+    angle=offset*step
+    depth=max(0,math.cos(math.radians(angle)))
+    return angle,depth
+
 class AutoRotation:
     def __init__(self):
         self.enabled=False;self.delay=5;self.next_at=0;self.order=[];self.custom=False
@@ -213,7 +227,7 @@ class Switcher(QtWidgets.QWidget):
             self.sequence_draft=None
         if not self.config.get('animations_enabled',True):
             self.activate();return
-        self.phase='finish';self.started=time.monotonic();self.source=self.cardrect(self.index)
+        self.source=self.cardrect(self.index);self.phase='finish';self.started=time.monotonic()
     def activate(self):
         item=self.items[self.index]
         self.activate_window(item['id'])
@@ -250,7 +264,11 @@ class Switcher(QtWidgets.QWidget):
         for i in order:
             rect=self.cardrect(i)
             if i!=self.index:rect=rect.intersected(panel)
-            if not rect.contains(event.localPos()):continue
+            hit=rect.contains(event.localPos())
+            if getattr(self,'config',{}).get('window_layout','flat')=='carousel':
+                polygon=self.cardtransform(i,self.cardrect(i)).map(QtGui.QPolygonF(self.cardrect(i)))
+                hit=polygon.containsPoint(event.localPos(),QtCore.Qt.OddEvenFill)
+            if not hit:continue
             self.index=i
             if self.rotation.enabled:
                 if self.sequence_draft is None:self.sequence_draft=[]
@@ -274,7 +292,9 @@ class Switcher(QtWidgets.QWidget):
         if self.phase=='row':
             animated=self.config.get('animations_enabled',True)
             self.progress=min(1,(time.monotonic()-self.started)/self.duration('open_ms',240)) if animated else 1
-            self.scroll+=(self.index-self.scroll)*(.18 if animated else 1)
+            if self.config.get('window_layout','flat')=='carousel':
+                self.scroll=(self.scroll+circular_delta(self.index,self.scroll,len(self.items))*(.18 if animated else 1))%len(self.items)
+            else:self.scroll+=(self.index-self.scroll)*(.18 if animated else 1)
             for i in range(len(self.scales)):self.scales[i]+=((self.selection_scale if i==self.index else 1)-self.scales[i])*(.22 if animated else 1)
             if self.tilt_selected!=self.index:
                 self.tilt_selected=self.index;self.tilt_started=time.monotonic();self.tilt_from=self.tilts[self.index]
@@ -302,7 +322,7 @@ class Switcher(QtWidgets.QWidget):
             self.update()
             if self.progress>=1:self.activate()
     def repaint_cards(self):
-        signature=(self.index,self.progress,self.scroll,tuple(self.scales))
+        signature=(self.index,self.progress,self.scroll,tuple(self.scales),self.config.get('window_layout','flat'))
         if not self.config.get('animations_enabled',True) and getattr(self,'last_render',None)==signature:return
         self.last_render=signature
         # Damage only the row and the transformed selected card, not every display.
@@ -316,12 +336,28 @@ class Switcher(QtWidgets.QWidget):
         self.last_damage=bounds
         self.update(bounds.united(old))
     def cardrect(self,i):
-        scale=self.scales[i];w=244*self.card_size*scale;h=186*self.card_size*scale
+        scale=self.scales[i]
+        if self.config.get('window_layout','flat')=='carousel' and self.phase=='row':
+            angle,depth=carousel_pose(i,self.scroll,len(self.items))
+            scale*=.66+.34*depth
+            w=244*self.card_size*scale;h=186*self.card_size*scale
+            radius=min(self.host.width()*.35,244*self.card_size*(1.45+min(len(self.items),8)*.12))
+            x=self.cx+math.sin(math.radians(angle))*radius-w/2
+            y=self.cy-h/2+(1-depth)*186*self.card_size*.2
+            return QtCore.QRectF(x,y,w,h)
+        w=244*self.card_size*scale;h=186*self.card_size*scale
         return QtCore.QRectF(self.cx+(i-self.scroll)*self.spacing-w/2,self.cy-h/2,w,h)
+    def cardtransform(self,i,r):
+        transform=QtGui.QTransform()
+        if self.config.get('window_layout','flat')!='carousel' or self.phase!='row':return transform
+        angle,_=carousel_pose(i,self.scroll,len(self.items));center=r.center()
+        transform.translate(center.x(),center.y());transform.rotate(-angle*.82,QtCore.Qt.YAxis);transform.translate(-center.x(),-center.y())
+        return transform
     def card(self,p,item,r,selected=False,opacity=1):
         p.save();p.setOpacity(opacity)
+        i=next((i for i,v in enumerate(self.items) if v is item),None)
+        if i is not None:p.setWorldTransform(self.cardtransform(i,r),True)
         if hasattr(self,'tilts') and self.config.get('selected_style','tilt')=='tilt':
-            i=next((i for i,v in enumerate(self.items) if v is item),None)
             if i is not None:
                 angle=self.tilts[i]*(1-self.progress if self.phase=='finish' else 1)
                 center=r.center();p.translate(center);p.rotate(angle);p.translate(-center)
@@ -361,11 +397,21 @@ class Switcher(QtWidgets.QWidget):
             fade=1-(1-self.progress)**3
             panel=QtCore.QRectF(self.cx-self.rowwidth/2,self.cy-self.panelheight/2,self.rowwidth,self.panelheight)
             if self.config.get('show_background',False):
-                p.save();p.setOpacity(fade);p.setPen(QtCore.Qt.NoPen);p.setBrush(self.color('primary','#0c111a'));p.drawRoundedRect(panel,22,22);p.restore()
+                p.save();p.setOpacity(fade);p.setBrush(self.color('primary','#0c111a'))
+                if self.config.get('window_layout','flat')=='carousel':
+                    radius=min(self.host.width()*.35,244*self.card_size*(1.45+min(len(self.items),8)*.12))
+                    base=QtCore.QRectF(self.cx-radius-244*self.card_size*.4,self.cy+186*self.card_size*.43,radius*2+244*self.card_size*.8,34)
+                    pen=QtGui.QPen(self.color('accent','#79b8ff'));pen.setWidthF(2);p.setPen(pen);p.drawRoundedRect(base,17,17)
+                else:p.setPen(QtCore.Qt.NoPen);p.drawRoundedRect(panel,22,22)
+                p.restore()
             p.save();p.setClipRect(panel.adjusted(10,8,-10,-8))
-            for i in range(len(self.items)):
+            order=range(len(self.items))
+            if self.config.get('window_layout','flat')=='carousel':order=sorted(order,key=lambda i:carousel_pose(i,self.scroll,len(self.items))[1])
+            for i in order:
                 rect=self.cardrect(i)
-                if i!=self.index and rect.intersects(panel):self.card(p,self.items[i],rect,False,fade*.82)
+                if i!=self.index and rect.intersects(panel):
+                    depth=carousel_pose(i,self.scroll,len(self.items))[1] if self.config.get('window_layout','flat')=='carousel' else .6
+                    self.card(p,self.items[i],rect,False,fade*(.55+.45*depth))
             p.restore()
             p.save();p.setClipRect(QtCore.QRectF(self.host.translated(-self.origin)))
             self.selected_card(p,fade);p.restore()

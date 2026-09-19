@@ -211,8 +211,18 @@ QtObject {
         readonly property real enlargement: Math.min(effect.configuration.SelectedScale,(height-80)/baseHeight,(width-60)/baseWidth)
         readonly property real spacing: baseWidth+26
         readonly property real rowWidth: Math.min(width-40,effect.windows.length*spacing)
+        readonly property bool carousel: effect.configuration.LayoutMode===1
+        readonly property real carouselRadius: Math.min(width*.35,baseWidth*(1.45+Math.min(effect.windows.length,8)*.12))
+        readonly property real carouselStep: Math.min(48,82/Math.max(1,Math.floor(effect.windows.length/2)))
         readonly property real centerX: Logic.clamp(effect.pointer.x-geometry.x,rowWidth/2+20,width-rowWidth/2-20)
         readonly property real centerY: Logic.clamp(effect.pointer.y-geometry.y,baseHeight*enlargement*.65+25,height-baseHeight*enlargement*.65-25)
+        function carouselDelta(index) {
+            var count=effect.windows.length,delta=index-effect.selected;
+            if (count<2) return 0;
+            while (delta>count/2) delta-=count;
+            while (delta<-count/2) delta+=count;
+            return delta;
+        }
         focus: isHost && !effect.returning
         clip: true
         // KWin clears its content item's focus after component completion.
@@ -267,38 +277,58 @@ QtObject {
             }
         }
         Rectangle {
-            visible: scene.isHost && !effect.returning && effect.configuration.ShowBackground
+            visible: scene.isHost && !effect.returning && effect.configuration.ShowBackground && !scene.carousel
             x: scene.centerX-scene.rowWidth/2;y: scene.centerY-scene.baseHeight/2-18
             width: scene.rowWidth;height: scene.baseHeight+36;radius: 22;color: effect.primary
+        }
+        Rectangle {
+            visible: scene.isHost && !effect.returning && effect.configuration.ShowBackground && scene.carousel
+            x: scene.centerX-scene.carouselRadius-scene.baseWidth*.4
+            y: scene.centerY+scene.baseHeight*.43
+            width: scene.carouselRadius*2+scene.baseWidth*.8;height: 34;radius: 17
+            color: effect.primary;border.width: 2;border.color: effect.accent;opacity: .88
         }
         Repeater {
             id: cards
             model: effect.visible && scene.isHost && !effect.returning ? effect.windows : []
             delegate: Rectangle {
                 id: card
+                objectName: "PreviewCard-"+index
                 required property int index
                 required property var modelData
                 readonly property bool selected: index===effect.selected
                 readonly property var snapshot: effect.snapshots[Logic.key(modelData)]
-                property real sizeScale: selected ? scene.enlargement : 1
+                readonly property real carouselOffset: scene.carouselDelta(index)
+                readonly property real carouselAngle: scene.carousel ? carouselOffset*scene.carouselStep : 0
+                readonly property real carouselDepth: scene.carousel ? Math.max(0,Math.cos(carouselAngle*Math.PI/180)) : 1
+                readonly property real depthScale: scene.carousel ? .66+.34*carouselDepth : 1
+                property real depthOpacity: scene.carousel ? .55+.45*carouselDepth : 1
+                property real sizeScale: (selected ? scene.enlargement : 1)*depthScale
+                property real yaw: scene.carousel ? -carouselAngle*.82 : 0
                 property real angle: 0
-                x: scene.centerX+(index-effect.selected)*scene.spacing-width/2
-                y: scene.centerY-height/2
+                property real revealOpacity: effect.configuration.Animations ? 0 : 1
+                x: scene.carousel
+                    ? scene.centerX+Math.sin(carouselAngle*Math.PI/180)*scene.carouselRadius-width/2
+                    : scene.centerX+(index-effect.selected)*scene.spacing-width/2
+                y: scene.centerY-height/2+(scene.carousel ? (1-carouselDepth)*scene.baseHeight*.2 : 0)
                 width: scene.baseWidth*sizeScale;height: scene.baseHeight*sizeScale
                 color: effect.secondary;radius: 16;border.width: selected ? 3 : 1
                 border.color: selected ? effect.accent : Qt.darker(effect.secondary,1.3)
-                z: selected ? 100 : 1;rotation: angle
-                visible: x+width>=scene.centerX-scene.rowWidth/2 && x<=scene.centerX+scene.rowWidth/2
+                z: selected ? 10000 : Math.round(carouselDepth*1000);rotation: angle
+                opacity: revealOpacity*depthOpacity
+                visible: scene.carousel || (x+width>=scene.centerX-scene.rowWidth/2 && x<=scene.centerX+scene.rowWidth/2)
                 function globalRect() {return Qt.rect(scene.geometry.x+x,scene.geometry.y+y,width,height);}
                 Behavior on x { NumberAnimation {duration: effect.configuration.Animations ? 180 : 0} }
+                Behavior on y { NumberAnimation {duration: effect.configuration.Animations ? 180 : 0;easing.type: Easing.OutCubic} }
                 Behavior on sizeScale { NumberAnimation {duration: effect.configuration.Animations ? 220 : 0;easing.type: Easing.OutCubic} }
+                Behavior on yaw { NumberAnimation {duration: effect.configuration.Animations ? 220 : 0;easing.type: Easing.OutCubic} }
+                Behavior on depthOpacity { NumberAnimation {duration: effect.configuration.Animations ? 180 : 0} }
                 onSelectedChanged: {rock.stop();entry.stop();angle=0;if(selected && effect.configuration.Animations && effect.configuration.SelectedStyle===1) entry.start();}
-                opacity: effect.configuration.Animations ? 0 : 1
                 Component.onCompleted: {
                     if(selected && effect.configuration.Animations && effect.configuration.SelectedStyle===1) entry.start();
                     if(effect.configuration.Animations) appear.start();
                 }
-                NumberAnimation {id: appear;target: card;property: "opacity";from: 0;to: 1;duration: effect.configuration.OpenMs;easing.type: Easing.OutCubic}
+                NumberAnimation {id: appear;target: card;property: "revealOpacity";from: 0;to: 1;duration: effect.configuration.OpenMs;easing.type: Easing.OutCubic}
                 NumberAnimation {id: entry;target: card;property: "angle";to: -effect.configuration.StyleStrength;duration: 1000;easing.type: Easing.InOutCubic;onFinished: if(card.selected) rock.start()}
                 SequentialAnimation {
                     id: rock;loops: Animation.Infinite
@@ -310,14 +340,20 @@ QtObject {
                     NumberAnimation {to: effect.configuration.StyleStrength;duration: 1400;easing.type: Easing.InOutSine}
                     NumberAnimation {to: -effect.configuration.StyleStrength;duration: 1400;easing.type: Easing.InOutSine}
                 }
-                transform: Translate {
-                    id: floatOffset
-                    SequentialAnimation on y {
-                        running: card.selected && effect.configuration.Animations && effect.configuration.SelectedStyle===3;loops: Animation.Infinite
-                        NumberAnimation {to: -effect.configuration.StyleStrength*1.5;duration: 1200;easing.type: Easing.InOutSine}
-                        NumberAnimation {to: effect.configuration.StyleStrength*1.5;duration: 1200;easing.type: Easing.InOutSine}
+                transform: [
+                    Rotation {
+                        origin.x: card.width/2;origin.y: card.height/2
+                        axis.x: 0;axis.y: 1;axis.z: 0;angle: card.yaw
+                    },
+                    Translate {
+                        id: floatOffset
+                        SequentialAnimation on y {
+                            running: card.selected && effect.configuration.Animations && effect.configuration.SelectedStyle===3;loops: Animation.Infinite
+                            NumberAnimation {to: -effect.configuration.StyleStrength*1.5;duration: 1200;easing.type: Easing.InOutSine}
+                            NumberAnimation {to: effect.configuration.StyleStrength*1.5;duration: 1200;easing.type: Easing.InOutSine}
+                        }
                     }
-                }
+                ]
                 SequentialAnimation on scale {
                     running: card.selected && effect.configuration.Animations && effect.configuration.SelectedStyle===4;loops: Animation.Infinite
                     NumberAnimation {to: 1+effect.configuration.StyleStrength*.004;duration: 1200;easing.type: Easing.InOutSine}

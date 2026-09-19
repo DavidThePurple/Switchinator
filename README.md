@@ -1,6 +1,6 @@
 # Switchinator
 
-An animated Alt+Tab replacement for Cinnamon on X11, with a separate experimental KDE/SteamOS Desktop Mode backend. A row of window preview cards opens near your cursor and includes windows from every display. Hold Alt and press Tab to cycle; release Alt to activate the selected window on its original monitor. Shift+Alt+Tab cycles backward; Escape cancels.
+An animated Alt+Tab replacement for Cinnamon on X11, with a separate experimental KDE/SteamOS Desktop Mode backend. A configurable flat row or 3D carousel of window preview cards opens near your cursor and includes windows from every display. Hold Alt and press Tab to cycle; release Alt to activate the selected window on its original monitor. Shift+Alt+Tab cycles backward; Escape cancels.
 
 The installed extension currently appears as **Card Switcher**, with UUID `card-switcher@everlasting.media`.
 
@@ -20,7 +20,7 @@ Run `./install.sh` to detect the desktop, or use `--backend cinnamon` / `--backe
 - Staggered background prefetch of one system-window preview every eight seconds.
 - Separate controls for card size and selected-card enlargement.
 - Tilt with animated entry and rocking, sway, float, pulse, or no effect.
-- Optional animations and row background.
+- Flat-row or optional 3D-carousel layout, with animations and background independently optional.
 - Current-theme colors or custom primary, secondary, accent, and text colors.
 
 The cards animate cached images; animation does not continuously capture the source windows.
@@ -42,7 +42,7 @@ Run the installer as your normal user. It copies the extension into your user Ci
 
 Open **System Settings → Extensions → Card Switcher → Configure**. Settings apply the next time the switcher opens.
 
-Preview size ranges from 60–200%; selected-card enlargement ranges from 1–3.5×. Both are limited to fit the display. Theme colors are enabled by default; the accent can be overridden independently. Disable theme colors to select every color yourself.
+Choose **Flat row** or **3D carousel** under Window layout. Preview size ranges from 60–200%; selected-card enlargement ranges from 1–3.5×. Both are limited to fit the display. Theme colors are enabled by default; the accent can be overridden independently. Disable theme colors to select every color yourself.
 
 ## Automatic rotation
 
